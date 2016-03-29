@@ -341,6 +341,228 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
 }
 
 
+/** @ingroup PIO_init
+ * Library initialization used when IO tasks are distinct from compute tasks
+ *
+ * This is a collective call.  Input parameters are read on
+ * comp_rank=0 values on other tasks are ignored.  This variation of
+ * PIO_init sets up a distinct set of tasks to handle IO, these tasks
+ * do not return from this call.  Instead they go to an internal loop
+ * and wait to receive further instructions from the computational
+ * tasks.
+ *
+ * For 4 tasks, to have 2 of them be computational, and 2 of them
+ * be IO, I would provide the following:
+ *
+ * component_count = 1
+ *
+ * peer_comm = MPI_COMM_WORLD
+ *
+ * comp_comms = an array with one element, an MPI (intra) communicator
+ * that contains the two tasks designated to do computation
+ * (processors 0, 1).
+
+ * io_comm = an MPI (intra) communicator with the other two tasks (2,
+ * 3).
+ *
+ * iosysidp = pointer that gets the IO system ID.
+ *
+ * Fortran function (from PIO1, in piolib_mod.F90) is:
+ *
+ * subroutine init_intercom(component_count, peer_comm, comp_comms,
+ * io_comm, iosystem, rearr_opts)
+ *
+ * Some notes from Jim:
+ *
+ * Components and Component Count
+ * ------------------------------
+ *
+ * It's a cesm thing - the cesm model is composed of several component
+ * models (atm, ocn, ice, lnd, etc) that may or may not be collocated
+ * on mpi tasks.  Since for intercomm the IOCOMM tasks are a subset of
+ * the compute tasks for a given component we have a separate iocomm
+ * for each model component.  and we call init_inracomm independently
+ * for each component.
+ *
+ * When the IO tasks are independent of any model component then we
+ * can have all of the components share one set of iotasks and we call
+ * init_intercomm once with the information for all components.
+ *
+ * Inter vs Intra Communicators
+ * ----------------------------
+ *
+ * ​For an intra you just need to provide the compute comm, pio creates
+ * an io comm as a subset of that compute comm.
+ *
+ * For an inter you need to provide multiple comms - peer comm is the
+ * communicator that is going to encompass all of the tasks - usually
+ * this will be mpi_comm_world.  Then you need to provide a comm for
+ * each component model that will share the io server, then an
+ * io_comm.
+ *
+ * Example of Communicators
+ * ------------------------
+ *
+ * Starting from MPI_COMM_WORLD the calling program will create an
+ * IO_COMM and one or more COMP_COMMs, I think an example might be best:
+ *
+ * Suppose we have 10 tasks and 2 of them will be IO tasks.  Then 0:7
+ * are in COMP_COMM and 8:9 are in IO_COMM In this case on tasks 0:7
+ * COMP_COMM is defined and IO_COMM is MPI_COMM_NULL and on tasks 8:9
+ * IO_COMM is defined and COMP_COMM is MPI_COMM_NULL The communicators
+ * to handle communications between COMP_COMM and IO_COMM are defined
+ * in init_intercomm and held in a pio internal data structure.
+ *
+ * Return or Not
+ * -------------
+ *
+ * The io_comm tasks do not return from the init_intercomm routine.   
+ *
+ * Sequence of Events to do Asynch I/O
+ * -----------------------------------
+ *
+ * Here is the sequence of events that needs to occur when an IO
+ * operation is called from the collection of compute tasks.  I'm
+ * going to use pio_put_var because write_darray has some special
+ * characteristics that make it a bit more complicated...
+ *
+ * Compute tasks call pio_put_var with an integer argument
+ *
+ * The MPI_Send sends a message from comp_rank=0 to io_rank=0 on
+ * union_comm (a comm defined as the union of io and compute tasks)
+ * msg is an integer which indicates the function being called, in
+ * this case the msg is PIO_MSG_PUT_VAR_INT
+ *
+ * The iotasks now know what additional arguments they should expect
+ * to receive from the compute tasks, in this case a file handle, a
+ * variable id, the length of the array and the array itself.
+ *
+ * The iotasks now have the information they need to complete the
+ * operation and they call the pio_put_var routine.  (In pio1 this bit
+ * of code is in pio_get_put_callbacks.F90.in)
+ *
+ * After the netcdf operation is completed (in the case of an inq or
+ * get operation) the result is communicated back to the compute
+ * tasks.
+ *
+ *
+ * @param component_count The number of computational (ex. model)
+ * components to associate with this IO component
+ *
+ * @param peer_comm The communicator from which all other communicator
+ * arguments are derived
+ *
+ * @param comp_comms An array containing the computational
+ * communicator for each of the computational components. The I/O
+ * tasks pass MPI_COMM_NULL for this parameter.
+ *
+`* @param io_comm The io communicator. Processing tasks pass
+ * MPI_COMM_NULL for this parameter.
+ *
+ * @param iosysidp An array of length component_count. It will get the
+ * iosysid for each component.
+ *
+ * @return PIO_NOERR on success, error code otherwise.
+ */
+int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_comms,
+			MPI_Comm io_comm, int *iosysidp)
+{
+    iosystem_desc_t *iosys;
+    iosystem_desc_t *my_iosys;
+    int ierr = PIO_NOERR;
+    int mpierr;
+    int my_rank;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+    /* Allocate struct to hold io system info for each component. */
+    if (!(iosys = (iosystem_desc_t *) calloc(1, sizeof(iosystem_desc_t) * component_count)))
+	ierr = PIO_ENOMEM;
+
+    if (!ierr)
+	for (int cmp = 0; cmp < component_count; cmp++)
+	{
+	    my_iosys = &iosys[cmp];
+	    
+	    /* Copy the communicator from which others are derived. */
+	    mpierr = MPI_Comm_dup(peer_comm, &my_iosys->union_comm);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	    if (mpierr)
+		ierr = PIO_EIO;
+
+	    /* Copy the component communicators. */
+	    if (comp_comms[cmp] != MPI_COMM_NULL)
+	    {
+		mpierr = MPI_Comm_dup(comp_comms[cmp], &my_iosys->comp_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+		mpierr = MPI_Comm_group(my_iosys->comp_comm, &my_iosys->compgroup);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+		
+	    }
+	    else
+	    {
+		my_iosys->comp_comm = MPI_COMM_NULL;
+		my_iosys->compgroup = MPI_GROUP_NULL;
+	    }
+
+	    /* Copy the IO communicator. */
+	    if (io_comm != MPI_COMM_NULL)
+	    {
+		mpierr = MPI_Comm_dup(io_comm, &my_iosys->io_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+		mpierr = MPI_Comm_group(my_iosys->io_comm, &my_iosys->iogroup);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+	    }
+	    else
+	    {
+		my_iosys->io_comm = MPI_COMM_NULL;
+		my_iosys->iogroup = MPI_GROUP_NULL;
+	    }
+
+	    /* ??? */
+	    my_iosys->intercomm = MPI_COMM_NULL;
+
+	    /* Set the default error handling. */
+	    my_iosys->error_handler = PIO_INTERNAL_ERROR;
+
+	    /* We do support asynch interface. */
+	    my_iosys->async_interface= true;
+
+	    /* ??? */
+	    my_iosys->compmaster = false;
+	    my_iosys->iomaster = false;
+	    my_iosys->ioproc = false;
+	    /*my_iosys->default_rearranger = rearr;*/
+
+	    /* Set the number of IO tasks. */
+	    my_iosys->num_iotasks = 1;
+	    /*my_iosys->num_iotasks = num_iotasks;*/
+
+	    /* Add this id to the list of PIO iosystem ids. */
+	    iosysidp[cmp] = pio_add_to_iosystem_list(my_iosys);
+	}
+
+    /* If there was an error, make sure all tasks see it. */
+    if (ierr)
+    {
+	/*mpierr = MPI_Bcast(&ierr, 1, MPI_INT, iosys->my_rank, iosys->intercomm);*/
+	mpierr = MPI_Bcast(&ierr, 1, MPI_INT, 0, iosys->intercomm);
+	CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	if (mpierr)
+	    ierr = PIO_EIO;
+    }
+    
+    return ierr;
+}
+
 /** 
  ** @ingroup PIO_init
  ** @brief library initialization used when IO tasks are a subset of compute tasks
@@ -504,21 +726,20 @@ int PIOc_finalize(const int iosysid)
   ios = pio_get_iosystem_from_id(iosysid);
   if(ios == NULL)
     return PIO_EBADID; 
-  /* FIXME: The memory for ioranks is allocated in C only for intracomms
-   * Remove this check once mem allocs for ioranks completely moves to the
-   * C code
-   */ 
-  if(ios->intercomm == MPI_COMM_NULL){
-    if(ios->ioranks != NULL){
+
+  /* Free this memory that was allocated in init_intracomm. */
+  if (ios->ioranks)
       free(ios->ioranks);
-    }
-  }
 
   free_cn_buffer_pool(*ios);
 
   /* Free the MPI groups. */
-  MPI_Group_free(&(ios->compgroup));
-  MPI_Group_free(&(ios->iogroup));
+  /* Free the MPI groups. */
+  if (ios->compgroup != MPI_GROUP_NULL)
+      MPI_Group_free(&ios->compgroup);
+
+  if (ios->iogroup != MPI_GROUP_NULL)
+      MPI_Group_free(&(ios->iogroup));
 
   /* Free the MPI communicators. */
   if(ios->intercomm != MPI_COMM_NULL){
