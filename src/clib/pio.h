@@ -139,43 +139,77 @@ typedef struct io_desc_t
 */
 typedef struct iosystem_desc_t 
 {
+  /** The ID of this iosystem_desc_t. */
   int iosysid;
+
+  /** This is an MPI intra communicator that includes all the tasks in
+   * both the IO and the computation communicators. */
   MPI_Comm union_comm;
+
+  /** This is an MPI intra communicator that includes all the tasks
+   * involved in IO. */
   MPI_Comm io_comm;
+
+  /** This is an MPI intra communicator that includes all the tasks
+   * involved in computation. */
   MPI_Comm comp_comm;
+
+  /** This is an MPI inter communicator between IO communicator and
+   * computation communicator. */
   MPI_Comm intercomm;
+
+  /** ??? */
   MPI_Comm my_comm;
 
   /** This MPI group contains the processors involved in
-   * computation. It is created in PIOc_Init_Intracomm(), and freed my
-   * PIO_finalize(). */
+   * computation. */
   MPI_Group compgroup;
     
-  /** This MPI group contains the processors involved in I/O. It is
-   * created in PIOc_Init_Intracomm(), and freed my PIOc_finalize(). */
+  /** This MPI group contains the processors involved in I/O. */
   MPI_Group iogroup;
-  
+
+  /** The number of tasks in the IO communicator. */
   int num_iotasks;
+
+  /** The number of tasks in the computation communicator. */
   int num_comptasks;
 
+  /** Rank of this task in the union communicator. */
   int union_rank;
+
+  /** The rank of this process in the computation communicator, or -1
+   * if this process is not part of the computation communicator. */
   int comp_rank;
+
+  /** The rank of this process in the IO communicator, or -1 if this
+   * process is not part of the IO communicator. */
   int io_rank;
 
+  /** Rank in the IO communicator of the task that is the master. */
   bool iomaster;
+
+  /** Rank in the computation communicator of the task that is the
+   * master. */
   bool compmaster;
 
   int ioroot;
   int comproot;
+    
   int *ioranks;
 
   int error_handler;
   int default_rearranger;
 
+  /** True if asynchronous interface is in use. */
   bool async_interface;
+
+  /** True if this task is a member of the IO communicator. */
   bool ioproc;
-  
+
+  /** MPI Info object. */
   MPI_Info info;
+
+  /** Pointer to the next iosystem_desc_t in the list. */
   struct iosystem_desc_t *next;
 } iosystem_desc_t;
 
