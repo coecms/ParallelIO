@@ -501,22 +501,39 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* Set the rank within the comp_comm. */
+		mpierr = MPI_Comm_rank(my_iosys->comp_comm, &my_iosys->comp_rank);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
 		
 	    }
 	    else
 	    {
 		my_iosys->comp_comm = MPI_COMM_NULL;
 		my_iosys->compgroup = MPI_GROUP_NULL;
+		my_iosys->comp_rank = -1;
 	    }
 
-	    /* Copy the IO communicator. */
+	    /* If this is part of the comm group set up communicator
+	     * group. */
 	    if (io_comm != MPI_COMM_NULL)
 	    {
+		/* Copy the IO communicator. */
 		mpierr = MPI_Comm_dup(io_comm, &my_iosys->io_comm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* Get an MPI group that includes the io tasks. */
 		mpierr = MPI_Comm_group(my_iosys->io_comm, &my_iosys->iogroup);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
+		/* Set the rank within the io_comm. */
+		mpierr = MPI_Comm_rank(my_iosys->io_comm, &my_iosys->io_rank);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
@@ -525,9 +542,11 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 	    {
 		my_iosys->io_comm = MPI_COMM_NULL;
 		my_iosys->iogroup = MPI_GROUP_NULL;
+		my_iosys->io_rank = -1;
 	    }
 
-	    /* ??? */
+	    /* Create the MPI inter communicator which allows
+	     * communication between the IO and computation groups. */
 	    my_iosys->intercomm = MPI_COMM_NULL;
 
 	    /* Set the default error handling. */
