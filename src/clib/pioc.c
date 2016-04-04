@@ -479,24 +479,24 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
     if (!(iosys = (iosystem_desc_t *) calloc(1, sizeof(iosystem_desc_t) * component_count)))
 	ierr = PIO_ENOMEM;
 
+    /* Copy the computation communicator into union_comm. */
+    iosys->union_comm = MPI_COMM_NULL;
+
     if (!ierr)
 	for (int cmp = 0; cmp < component_count; cmp++)
 	{
 	    my_iosys = &iosys[cmp];
 	    
-	    /* Copy the communicator from which others are derived. */
-	    mpierr = MPI_Comm_dup(peer_comm, &my_iosys->union_comm);
-	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
-	    if (mpierr)
-		ierr = PIO_EIO;
-
-	    /* Copy the component communicators. */
+	    /* This task is part of the computation communicator. */
 	    if (comp_comms[cmp] != MPI_COMM_NULL)
 	    {
+		/* Copy the computation communicator. */
 		mpierr = MPI_Comm_dup(comp_comms[cmp], &my_iosys->comp_comm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* Create an MPI group with the computation tasks. */
 		mpierr = MPI_Comm_group(my_iosys->comp_comm, &my_iosys->compgroup);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
@@ -507,6 +507,12 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* Is this the compmaster? Only if the comp_rank is zero. */
+		if (my_iosys->comp_rank)
+		    my_iosys->compmaster = false;
+		else
+		    my_iosys->compmaster = true;
 		
 	    }
 	    else
@@ -516,8 +522,8 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		my_iosys->comp_rank = -1;
 	    }
 
-	    /* If this is part of the comm group set up communicator
-	     * group. */
+	    /* This task is part of the IO communicator, so set up the
+	     * IO stuff. */
 	    if (io_comm != MPI_COMM_NULL)
 	    {
 		/* Copy the IO communicator. */
@@ -537,12 +543,23 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* This is an io task. */
+		my_iosys->ioproc = true;
+
+		/* Is this the iomaster? Only if the io_rank is zero. */
+		if (my_iosys->io_rank)
+		    my_iosys->iomaster = false;
+		else
+		    my_iosys->iomaster = true;
 	    }
 	    else
 	    {
 		my_iosys->io_comm = MPI_COMM_NULL;
 		my_iosys->iogroup = MPI_GROUP_NULL;
 		my_iosys->io_rank = -1;
+		my_iosys->ioproc = false;
+		my_iosys->iomaster = false;
 	    }
 
 	    /* Create the MPI inter communicator which allows
@@ -558,7 +575,6 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 	    /* ??? */
 	    my_iosys->compmaster = false;
 	    my_iosys->iomaster = false;
-	    my_iosys->ioproc = false;
 	    /*my_iosys->default_rearranger = rearr;*/
 
 	    /* Set the number of IO tasks. */
