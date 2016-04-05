@@ -341,6 +341,11 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
 }
 
 
+int pio_msg_handler(int component_count, iosystem_desc_t *my_iosys)
+{
+    return PIO_NOERR;
+}
+
 /** @ingroup PIO_init
  * Library initialization used when IO tasks are distinct from compute tasks
  *
@@ -464,8 +469,8 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
  *
  * @return PIO_NOERR on success, error code otherwise.
  */
-int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_comms,
-			MPI_Comm io_comm, int *iosysidp)
+int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
+			MPI_Comm *comp_comms, MPI_Comm io_comm, int *iosysidp)
 {
     iosystem_desc_t *iosys;
     iosystem_desc_t *my_iosys;
@@ -627,6 +632,10 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 		if (mpierr)
 		    ierr = PIO_EIO;
+
+		/* Now call the function from which the IO tasks will not return. */
+		if ((ierr = pio_msg_handler(component_count, my_iosys)))
+		    return ierr;
 	    }
 	    else
 	    {
@@ -637,20 +646,11 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		my_iosys->iomaster = false;
 	    }
 
-	    /* Create the MPI inter communicator which allows
-	     * communication between the IO and computation groups. */
-	    my_iosys->intercomm = MPI_COMM_NULL;
-
 	    /* Set the default error handling. */
 	    my_iosys->error_handler = PIO_INTERNAL_ERROR;
 
 	    /* We do support asynch interface. */
 	    my_iosys->async_interface= true;
-
-	    /* ??? */
-	    my_iosys->compmaster = false;
-	    my_iosys->iomaster = false;
-	    /*my_iosys->default_rearranger = rearr;*/
 
 	    /* Set the number of IO tasks. */
 	    my_iosys->num_iotasks = 1;
