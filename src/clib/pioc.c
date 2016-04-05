@@ -340,7 +340,8 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
   return PIO_NOERR;
 }
 
-/** This function is called by the IO tasks. */
+/** This function is called by the IO tasks.  This function will not
+ return, unless there is an error. */
 int pio_msg_handler(int component_count, iosystem_desc_t *my_iosys)
 {
     return PIO_NOERR;
