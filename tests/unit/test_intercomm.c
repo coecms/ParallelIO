@@ -252,6 +252,8 @@ main(int argc, char **argv)
 	/* Construct a group with ranks 0, 1 in world_group. */
 	MPI_Group_incl(world_group, n, ranks, &comp_group);
 	MPI_Comm_create_group(MPI_COMM_WORLD, comp_group, 0, &comp_comms);
+	if (verbose)
+	    printf("%d: included in comp_group.\n", my_rank);
     }
     else
     {
@@ -263,6 +265,8 @@ main(int argc, char **argv)
 	/* Construct a group with ranks 2, 3 in world_group. */
 	MPI_Group_incl(world_group, n, ranks, &io_group);
 	MPI_Comm_create_group(MPI_COMM_WORLD, io_group, 0, &io_comm);
+	if (verbose)
+	    printf("%d: included in io_group.\n", my_rank);
     }
     
     if ((ret = PIOc_Init_Intercomm(COMPONENT_COUNT, MPI_COMM_WORLD, &comp_comms,

@@ -472,6 +472,8 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
     int ierr = PIO_NOERR;
     int mpierr;
     int my_rank;
+    int iam;
+    int io_leader, comp_leader;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
@@ -508,12 +510,48 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		if (mpierr)
 		    ierr = PIO_EIO;
 
+		/* Find the rank of the io leader in peer_comm. */
+		iam = -1;
+		mpierr = MPI_Allreduce(&iam, &io_leader, 1, MPI_INT, MPI_MAX, peer_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
+		/* Find the rank of the comp leader in peer_comm. */
+		if (!my_iosys->comp_rank)
+		{
+		    mpierr = MPI_Comm_rank(peer_comm, &iam);
+		    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		    if (mpierr)
+			ierr = PIO_EIO;
+		}
+		else
+		    iam = -1;
+
+		/* Find the lucky comp_leader task. */
+		mpierr = MPI_Allreduce(&iam, &comp_leader, 1, MPI_INT, MPI_MAX, peer_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
 		/* Is this the compmaster? Only if the comp_rank is zero. */
 		if (my_iosys->comp_rank)
 		    my_iosys->compmaster = false;
 		else
 		    my_iosys->compmaster = true;
 		
+		/* Set up the intercomm from the computation side. */
+		mpierr = MPI_Intercomm_create(my_iosys->comp_comm, 0, peer_comm,
+					      io_leader, cmp, &my_iosys->intercomm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
+		/* Create the union communicator. */
+		mpierr = MPI_Intercomm_merge(my_iosys->intercomm, 0, &my_iosys->union_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
 	    }
 	    else
 	    {
@@ -544,6 +582,30 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		if (mpierr)
 		    ierr = PIO_EIO;
 
+		/* Find the rank of the io leader in peer_comm. */
+		if (!my_iosys->io_rank)
+		{
+		    mpierr = MPI_Comm_rank(peer_comm, &iam);
+		    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		    if (mpierr)
+			ierr = PIO_EIO;
+		}
+		else
+		    iam = -1;
+
+		/* Find the lucky io_leader task. */
+		mpierr = MPI_Allreduce(&iam, &io_leader, 1, MPI_INT, MPI_MAX, peer_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
+		/* Find the rank of the comp leader in peer_comm. */
+		iam = -1;
+		mpierr = MPI_Allreduce(&iam, &comp_leader, 1, MPI_INT, MPI_MAX, peer_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+		
 		/* This is an io task. */
 		my_iosys->ioproc = true;
 
@@ -551,7 +613,20 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm, MPI_Comm *comp_
 		if (my_iosys->io_rank)
 		    my_iosys->iomaster = false;
 		else
-		    my_iosys->iomaster = true;
+		    my_iosys->iomaster = true;		
+
+		/* Set up the intercomm from the I/O side. */
+		mpierr = MPI_Intercomm_create(my_iosys->io_comm, 0, peer_comm,
+					      comp_leader, cmp, &my_iosys->intercomm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
+		/* Create the union communicator. */
+		mpierr = MPI_Intercomm_merge(my_iosys->intercomm, 0, &my_iosys->union_comm);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
 	    }
 	    else
 	    {
