@@ -510,6 +510,12 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		if (mpierr)
 		    ierr = PIO_EIO;
 
+		/* Find out how many tasks are in this communicator. */
+		mpierr = MPI_Comm_size(iosys->comp_comm, &iosys->num_comptasks);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
 		/* Set the rank within the comp_comm. */
 		mpierr = MPI_Comm_rank(my_iosys->comp_comm, &my_iosys->comp_rank);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
@@ -582,6 +588,12 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		if (mpierr)
 		    ierr = PIO_EIO;
 
+		/* Find out how many tasks are in this communicator. */
+		mpierr = MPI_Comm_size(iosys->io_comm, &iosys->num_iotasks);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+		if (mpierr)
+		    ierr = PIO_EIO;
+
 		/* Set the rank within the io_comm. */
 		mpierr = MPI_Comm_rank(my_iosys->io_comm, &my_iosys->io_rank);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);		
@@ -646,6 +658,21 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		my_iosys->ioproc = false;
 		my_iosys->iomaster = false;
 	    }
+
+	    /* Find rank in union communicator. */
+	    mpierr = MPI_Comm_rank(my_iosys->union_comm, &my_iosys->union_rank);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	    if (mpierr)
+		ierr = PIO_EIO;
+
+	    /* Find the rank of the io leader in the union communicator. */
+	    if (!my_iosys->io_rank)
+		my_iosys->ioroot = my_iosys->union_rank;
+	    
+	    /* Find the rank of the computation leader in the union
+	     * communicator. */
+	    if (!my_iosys->comp_rank)
+		my_iosys->comproot = my_iosys->union_rank;
 
 	    /* Set the default error handling. */
 	    my_iosys->error_handler = PIO_INTERNAL_ERROR;

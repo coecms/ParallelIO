@@ -191,7 +191,12 @@ typedef struct iosystem_desc_t
   /** True if this task is the master of computation communicator. */
   bool compmaster;
 
+  /** Rank of IO root task (which is rank 0 in io_comm) in the union
+   * communicator. */
   int ioroot;
+
+  /** Rank of computation root task (which is rank 0 in
+   * comm_comms[cmp]) in the union communicator. */
   int comproot;
     
   int *ioranks;
