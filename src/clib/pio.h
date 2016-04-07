@@ -198,7 +198,9 @@ typedef struct iosystem_desc_t
   /** Rank of computation root task (which is rank 0 in
    * comm_comms[cmp]) in the union communicator. */
   int comproot;
-    
+
+  /** An array of the ranks of all IO tasks within the union
+   * communicator. */
   int *ioranks;
 
   int error_handler;
