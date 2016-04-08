@@ -203,7 +203,10 @@ typedef struct iosystem_desc_t
    * communicator. */
   int *ioranks;
 
+  /** Controls handling errors. */
   int error_handler;
+
+  /** ??? */
   int default_rearranger;
 
   /** True if asynchronous interface is in use. */

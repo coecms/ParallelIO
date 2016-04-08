@@ -371,12 +371,14 @@ pio_iosys_print(int my_rank, iosystem_desc_t *iosys)
     else
 	printf("intercomm: %d\n", iosys->intercomm);
     
-    printf("%d num_iotasks=%d num_comptasks=%d union_rank=%d, comp_rank=%d, io_rank=%d\n",
-	   my_rank, iosys->num_iotasks, iosys->num_comptasks, iosys->union_rank, iosys->comp_rank,
-	   iosys->io_rank);
+    printf("%d num_iotasks=%d num_comptasks=%d union_rank=%d, comp_rank=%d, "
+	   "io_rank=%d async_interface=%d\n",
+	   my_rank, iosys->num_iotasks, iosys->num_comptasks, iosys->union_rank,
+	   iosys->comp_rank, iosys->io_rank, iosys->async_interface);
 
     printf("%d ioroot=%d comproot=%d iomaster=%d, compmaster=%d\n",
-	   my_rank, iosys->ioroot, iosys->comproot, iosys->iomaster, iosys->compmaster);
+	   my_rank, iosys->ioroot, iosys->comproot, iosys->iomaster,
+	   iosys->compmaster);
 
     printf("%d iotasks:", my_rank);
     for (int i = 0; i < iosys->num_iotasks; i++)
@@ -792,6 +794,12 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 	    /* Free temp array. */
 	    free(tmp_ioranks);
 
+	    /* Set the default error handling. */
+	    my_iosys->error_handler = PIO_INTERNAL_ERROR;
+
+	    /* We do support asynch interface. */
+	    my_iosys->async_interface = true;
+
 	    /* For debug purposes, print the contents of the struct. */
 	    for (int t = 0; t < my_iosys->num_iotasks + my_iosys->num_comptasks; t++)
 	    {
@@ -799,16 +807,6 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		if (my_rank == t)
 		    pio_iosys_print(my_rank, my_iosys);
 	    }
-
-	    /* Set the default error handling. */
-	    my_iosys->error_handler = PIO_INTERNAL_ERROR;
-
-	    /* We do support asynch interface. */
-	    my_iosys->async_interface= true;
-
-	    /* Set the number of IO tasks. */
-	    my_iosys->num_iotasks = 1;
-	    /*my_iosys->num_iotasks = num_iotasks;*/
 
 	    /* Add this id to the list of PIO iosystem ids. */
 	    iosysidp[cmp] = pio_add_to_iosystem_list(my_iosys);
