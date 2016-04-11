@@ -158,6 +158,9 @@ void flush_buffer(int ncid, wmulti_buffer *wmb, bool flushtodisk);
 }
 #endif
 
+/** These are the messages that can be sent over the intercomm. The
+ * numbers match those used in the v1 Fortran implementation, as seen
+ * in pio_msg_mod.F90. */
 enum PIO_MSG{
   PIO_MSG_OPEN_FILE,
   PIO_MSG_CREATE_FILE,
@@ -365,7 +368,13 @@ enum PIO_MSG{
   PIO_MSG_SET_CHUNK_CACHE,
   PIO_MSG_GET_CHUNK_CACHE,
   PIO_MSG_SET_VAR_CHUNK_CACHE,
-  PIO_MSG_GET_VAR_CHUNK_CACHE
+  PIO_MSG_GET_VAR_CHUNK_CACHE,
+  PIO_MSG_INITDECOMP_DOF,
+  PIO_MSG_WRITEDARRAY,
+  PIO_MSG_READDARRAY,
+  PIO_MSG_SETERRORHANDLING,
+  PIO_MSG_FREEDECOMP,
+  PIO_MSG_EXIT
 };
 
 #endif

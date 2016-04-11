@@ -340,10 +340,155 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
   return PIO_NOERR;
 }
 
+int create_file_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int open_file_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int initdecomp_dof_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int writedarray_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int readdarray_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int seterrorhandling_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int var_handler(iosystem_desc_t *ios, int msg)
+{
+    return PIO_NOERR;
+}
+
+int vara_handler(iosystem_desc_t *ios, int msg)
+{
+    return PIO_NOERR;
+}
+
+int att_handler(iosystem_desc_t *ios, int msg)
+{
+    return PIO_NOERR;
+}
+
+int freedecomp_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int finalize_handler(iosystem_desc_t *ios)
+{
+    return PIO_NOERR;
+}
+
+int pio_callback_handler(iosystem_desc_t *ios, int msg)
+{
+    return PIO_NOERR;
+}
+
 /** This function is called by the IO tasks.  This function will not
  return, unless there is an error. */
-int pio_msg_handler(int component_count, iosystem_desc_t *my_iosys)
+int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 {
+    iosystem_desc_t *my_iosys;    
+    int msg = 0;
+    int req[component_count];
+    MPI_Status status;
+    int index;
+    int mpierr;
+
+    /* Initialize the request array. */
+    for (int cmp = 0; cmp < component_count; cmp++)
+	req[cmp] = MPI_REQUEST_NULL;
+
+    /* Have IO comm rank 0 wait for a message. */
+    if (!io_rank)
+    {
+	for (int cmp = 0; cmp < component_count; cmp++)
+	{
+	    my_iosys = &iosys[cmp];
+	    mpierr = MPI_Recv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+			      &req[cmp]);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	}
+    }
+
+    /* If the message is not -1, keep processing messages. */
+    while (msg != -1)
+    {
+	if (!io_rank)
+	{
+	    mpierr = MPI_Waitany(component_count, req, &index, &status);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	}
+
+	mpierr = MPI_Bcast(&index, 1, MPI_INT, 0, iosys->io_comm);
+	CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	my_iosys = &iosys[index];
+
+	mpierr = MPI_Bcast(&msg, 1, MPI_INT, 0, my_iosys->io_comm);
+	CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	
+	switch (msg)
+	{
+	case PIO_MSG_CREATE_FILE:
+	    create_file_handler(my_iosys);
+	    break;
+	case PIO_MSG_OPEN_FILE:
+	    open_file_handler(my_iosys);
+	    break;
+	case PIO_MSG_INITDECOMP_DOF:
+	    initdecomp_dof_handler(my_iosys);
+	    break;
+	case PIO_MSG_WRITEDARRAY:
+	    writedarray_handler(my_iosys);
+	    break;
+	case PIO_MSG_READDARRAY:
+	    readdarray_handler(my_iosys);
+	    break;
+	case PIO_MSG_SETERRORHANDLING:
+	    seterrorhandling_handler(my_iosys);
+	    break;
+	case PIO_MSG_GET_VAR1:
+	    var_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_PUT_VAR1:
+	    var_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_PUT_VARA:
+	    vara_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_GET_ATT_INT:
+	    att_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_PUT_ATT_INT:
+	    att_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_FREEDECOMP:
+	    freedecomp_handler(my_iosys);
+	    break;
+	case PIO_MSG_EXIT:
+	    finalize_handler(my_iosys);
+	    break;
+	default:
+	    pio_callback_handler(my_iosys,msg);
+	}
+    }
+    
     return PIO_NOERR;
 }
 
@@ -387,8 +532,9 @@ pio_iosys_print(int my_rank, iosystem_desc_t *iosys)
     return PIO_NOERR;
 }
 
-/** @ingroup PIO_init
- * Library initialization used when IO tasks are distinct from compute tasks
+/** @ingroup PIO_init 
+ * Library initialization used when IO tasks are distinct from compute
+ * tasks.
  *
  * This is a collective call.  Input parameters are read on
  * comp_rank=0 values on other tasks are ignored.  This variation of
@@ -697,9 +843,6 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		if (mpierr)
 		    ierr = PIO_EIO;
 
-		/* Now call the function from which the IO tasks will not return. */
-		if ((ierr = pio_msg_handler(component_count, my_iosys)))
-		    return ierr;
 	    }
 	    else
 	    {
@@ -810,8 +953,13 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 
 	    /* Add this id to the list of PIO iosystem ids. */
 	    iosysidp[cmp] = pio_add_to_iosystem_list(my_iosys);
+
 	}
 
+    /* /\* Now call the function from which the IO tasks will not return. *\/ */
+    /* if ((ierr = pio_msg_handler(my_iosys->io_rank, component_count, iosys))) */
+    /* 	return ierr; */
+    
     /* If there was an error, make sure all tasks see it. */
     if (ierr)
     {
