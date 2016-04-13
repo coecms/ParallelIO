@@ -396,6 +396,7 @@ int finalize_handler(iosystem_desc_t *ios)
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     printf("%d finalize_handler called\n", my_rank);
     PIOc_finalize(ios->iosysid);
+    MPI_Finalize();    
     exit(0);
     return PIO_NOERR;
 }
