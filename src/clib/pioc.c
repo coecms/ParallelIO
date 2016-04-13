@@ -392,6 +392,11 @@ int freedecomp_handler(iosystem_desc_t *ios)
 
 int finalize_handler(iosystem_desc_t *ios)
 {
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    printf("%d finalize_handler called\n", my_rank);
+    PIOc_finalize(ios->iosysid);
+    exit(0);
     return PIO_NOERR;
 }
 
@@ -406,11 +411,15 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 {
     iosystem_desc_t *my_iosys;    
     int msg = 0;
-    int req[component_count];
+    MPI_Request req[component_count];
     MPI_Status status;
     int index;
     int mpierr;
 
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    printf("%d pio_msg_handler called\n", my_rank);
+    
     /* Initialize the request array. */
     for (int cmp = 0; cmp < component_count; cmp++)
 	req[cmp] = MPI_REQUEST_NULL;
@@ -421,9 +430,11 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	for (int cmp = 0; cmp < component_count; cmp++)
 	{
 	    my_iosys = &iosys[cmp];
-	    mpierr = MPI_Recv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+	    printf("%d about to call MPI_Recv\n", my_rank);	    
+	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
 			      &req[cmp]);
-	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	    printf("%d got msg = %d req[%d] = %d\n", my_rank, msg, cmp, req[cmp]);
 	}
     }
 
@@ -432,10 +443,12 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     {
 	if (!io_rank)
 	{
+	    printf("%d about to call MPI_Waitany req[0] = %d MPI_REQUEST_NULL = %d\n", my_rank, req[0], MPI_REQUEST_NULL);	    
 	    mpierr = MPI_Waitany(component_count, req, &index, &status);
 	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
 	}
 
+	printf("%d about to call MPI_Bcast\n", my_rank);	    
 	mpierr = MPI_Bcast(&index, 1, MPI_INT, 0, iosys->io_comm);
 	CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	my_iosys = &iosys[index];
@@ -953,13 +966,18 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 
 	    /* Add this id to the list of PIO iosystem ids. */
 	    iosysidp[cmp] = pio_add_to_iosystem_list(my_iosys);
+	    printf("%d added to iosystem_list iosysid = %d\n", my_rank, iosysidp[cmp]);	    
 
+	    /* Now call the function from which the IO tasks will not return. */
+	    if (io_comm != MPI_COMM_NULL)
+	    {
+		printf("%d about to call pio_msg_handler\n", my_rank);
+		if ((ierr = pio_msg_handler(my_iosys->io_rank, component_count, iosys)))
+		    return ierr;
+	    }
+    
 	}
 
-    /* /\* Now call the function from which the IO tasks will not return. *\/ */
-    /* if ((ierr = pio_msg_handler(my_iosys->io_rank, component_count, iosys))) */
-    /* 	return ierr; */
-    
     /* If there was an error, make sure all tasks see it. */
     if (ierr)
     {
@@ -1132,19 +1150,38 @@ int PIOc_set_hint(const int iosysid, char hint[], const char hintval[])
 int PIOc_finalize(const int iosysid)
 {
   iosystem_desc_t *ios, *nios;
+  int msg;
+  int mpierr;
 
+  int my_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  printf("%d PIOc_finalize iosysid = %d\n", my_rank, iosysid);
+  
   ios = pio_get_iosystem_from_id(iosysid);
   if(ios == NULL)
-    return PIO_EBADID; 
+    return PIO_EBADID;
+  printf("%d iosysid = %d\n", my_rank, iosysid);
+  
+  /* If asynch IO is in use, send the PIO_MSG_EXIT message from the
+   * comp master to the IO processes. */
+  if (ios->async_interface && !ios->comp_rank)
+  {
+      printf("%d sending PIO_MSG_EXIT\n", my_rank);
+      msg = PIO_MSG_EXIT;
+      mpierr = MPI_Send(&msg, 1, MPI_INT, ios->ioroot, 1, ios->union_comm);
+      CheckMPIReturn(mpierr, __FILE__, __LINE__);		      
+  }
 
   /* Free this memory that was allocated in init_intracomm. */
+  printf("%d freeing ioranks\n", my_rank);  
   if (ios->ioranks)
       free(ios->ioranks);
 
+  printf("%d freeing buffer pool\n", my_rank);
   free_cn_buffer_pool(*ios);
 
   /* Free the MPI groups. */
-  /* Free the MPI groups. */
+  printf("%d freeing groups\n", my_rank);
   if (ios->compgroup != MPI_GROUP_NULL)
       MPI_Group_free(&ios->compgroup);
 
