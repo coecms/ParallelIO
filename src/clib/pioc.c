@@ -395,9 +395,6 @@ int finalize_handler(iosystem_desc_t *ios)
     int my_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     printf("%d finalize_handler called\n", my_rank);
-    PIOc_finalize(ios->iosysid);
-    MPI_Finalize();    
-    exit(0);
     return PIO_NOERR;
 }
 
@@ -497,6 +494,7 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    break;
 	case PIO_MSG_EXIT:
 	    finalize_handler(my_iosys);
+	    msg = -1;
 	    break;
 	default:
 	    pio_callback_handler(my_iosys,msg);
@@ -969,7 +967,8 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 	    iosysidp[cmp] = pio_add_to_iosystem_list(my_iosys);
 	    printf("%d added to iosystem_list iosysid = %d\n", my_rank, iosysidp[cmp]);	    
 
-	    /* Now call the function from which the IO tasks will not return. */
+	    /* Now call the function from which the IO tasks will not
+	     * return until the PIO_MSG_EXIT message is sent. */
 	    if (io_comm != MPI_COMM_NULL)
 	    {
 		printf("%d about to call pio_msg_handler\n", my_rank);

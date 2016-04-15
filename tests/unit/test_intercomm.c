@@ -194,11 +194,11 @@ main(int argc, char **argv)
     /** Index for loops. */
     int fmt, d, d1, i;
     
-#ifdef TIMING    
-    /* Initialize the GPTL timing library. */
-    if ((ret = GPTLinitialize ()))
-	return ret;
-#endif    
+/* #ifdef TIMING     */
+/*     /\* Initialize the GPTL timing library. *\/ */
+/*     if ((ret = GPTLinitialize ())) */
+/* 	return ret; */
+/* #endif     */
     
     /* Initialize MPI. */
     if ((ret = MPI_Init(&argc, &argv)))
@@ -300,11 +300,11 @@ main(int argc, char **argv)
     /* Finalize the MPI library. */
     MPI_Finalize();
 
-#ifdef TIMING    
-    /* Finalize the GPTL timing library. */
-    if ((ret = GPTLfinalize ()))
-	return ret;
-#endif    
+/* #ifdef TIMING     */
+/*     /\* Finalize the GPTL timing library. *\/ */
+/*     if ((ret = GPTLfinalize ())) */
+/* 	return ret; */
+/* #endif     */
 
     return 0;
 }
