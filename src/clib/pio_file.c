@@ -113,7 +113,7 @@ int PIOc_openfile(const int iosysid, int *ncidp, int *iotype,
     // If we failed to open a file due to an incompatible type of NetCDF, try it 
     // once with just plain old basic NetCDF
 #ifdef _NETCDF
-    if(ierr == NC_ENOTNC && (file->iotype != PIO_IOTYPE_NETCDF)) {
+    if((ierr == NC_ENOTNC || ierr == NC_EINVAL) && (file->iotype != PIO_IOTYPE_NETCDF)) {
         if(ios->iomaster) printf("PIO2 pio_file.c retry NETCDF\n"); 
 	// reset ierr on all tasks
 	ierr = PIO_NOERR;
