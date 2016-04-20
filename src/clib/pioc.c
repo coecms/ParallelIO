@@ -340,8 +340,47 @@ int PIOc_InitDecomp_bc(const int iosysid, const int basetype,const int ndims, co
   return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks to create a netCDF file. */
 int create_file_handler(iosystem_desc_t *ios)
 {
+    int ncid;
+    int len;
+    int iotype;
+    char *filename;
+    int mode;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d create_file_handler comproot = %d\n", my_rank, ios->comproot);
+
+    /* Get the parameters for this function that the he comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&len, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d create_file_handler got parameter len = %d\n", my_rank, len);
+    if (!(filename = malloc(len + 1 * sizeof(char))))
+    	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)filename, len + 1, MPI_CHAR, 0,
+    			    ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&iotype, 1, MPI_INT, 0, ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&mode, 1, MPI_INT, 0, ios->intercomm)))
+    	return PIO_EIO;
+    printf("%d create_file_handler got parameters len = %d "
+    	   "filename = %s iotype = %d mode = %d\n",
+    	   my_rank, len, filename, iotype, mode);
+
+    /* Call the create file function. */
+    if ((ret = PIOc_createfile(ios->iosysid, &ncid, &iotype, filename, mode)))
+	return ret;
+    
+    /* Free resources. */
+    free(filename);
+    
+    printf("%d create_file_handler succeeded!\n", my_rank);
     return PIO_NOERR;
 }
 
@@ -422,7 +461,7 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     for (int cmp = 0; cmp < component_count; cmp++)
 	req[cmp] = MPI_REQUEST_NULL;
 
-    /* Have IO comm rank 0 wait for a message. */
+    /* Have IO comm rank 0 (the ioroot) wait for a message from the comproot. */
     if (!io_rank)
     {
 	for (int cmp = 0; cmp < component_count; cmp++)
@@ -439,21 +478,29 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     /* If the message is not -1, keep processing messages. */
     while (msg != -1)
     {
+	/* For the io root task, wait until any one of the requests are complete. */
 	if (!io_rank)
 	{
-	    printf("%d about to call MPI_Waitany req[0] = %d MPI_REQUEST_NULL = %d\n", my_rank, req[0], MPI_REQUEST_NULL);	    
+	    printf("%d about to call MPI_Waitany req[0] = %d MPI_REQUEST_NULL = %d\n",
+		   my_rank, req[0], MPI_REQUEST_NULL);	    
 	    mpierr = MPI_Waitany(component_count, req, &index, &status);
-	    CheckMPIReturn(mpierr, __FILE__, __LINE__);		
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	}
 
+	/* Broadcast the index of the computational component that
+	 * originated the request to the rest of the IO tasks. */
 	printf("%d about to call MPI_Bcast\n", my_rank);	    
 	mpierr = MPI_Bcast(&index, 1, MPI_INT, 0, iosys->io_comm);
 	CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	my_iosys = &iosys[index];
+	printf("%d MPI_Bcast complete index = %d\n", my_rank, index);	    	
 
+	/* Broadcast the msg value to the rest of the IO tasks. */
 	mpierr = MPI_Bcast(&msg, 1, MPI_INT, 0, my_iosys->io_comm);
 	CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	
+	printf("%d MPI_Bcast complete msg = %d\n", my_rank, msg);	    	
+
+	/* Handle the message. This code is run on all IO tasks. */
 	switch (msg)
 	{
 	case PIO_MSG_CREATE_FILE:
@@ -698,6 +745,9 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 	    /* Get a pointer to the iosys struct */
 	    my_iosys = &iosys[cmp];
     	    
+	    /* Create an MPI info object. */
+	    CheckMPIReturn(MPI_Info_create(&(my_iosys->info)),__FILE__,__LINE__);
+
 	    /* This task is part of the computation communicator. */
 	    if (comp_comms[cmp] != MPI_COMM_NULL)
 	    {
@@ -752,11 +802,11 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		/* Is this the compmaster? Only if the comp_rank is zero. */
 		if (!my_iosys->comp_rank)
 		{
-		    my_iosys->compmaster = true;
+		    my_iosys->compmaster = MPI_ROOT;
 		    comp_master = MPI_ROOT;
 		}
 		else
-		    my_iosys->compmaster = false;
+		    my_iosys->compmaster = MPI_PROC_NULL;
 		
 		/* Set up the intercomm from the computation side. */
 		mpierr = MPI_Intercomm_create(my_iosys->comp_comm, 0, peer_comm,
@@ -836,11 +886,11 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		/* Is this the iomaster? Only if the io_rank is zero. */
 		if (!my_iosys->io_rank)
 		{
-		    my_iosys->iomaster = true;
+		    my_iosys->iomaster = MPI_ROOT;
 		    io_master = MPI_ROOT;
 		}
 		else
-		    my_iosys->iomaster = false;		
+		    my_iosys->iomaster = 0;		
 
 		/* Set up the intercomm from the I/O side. */
 		mpierr = MPI_Intercomm_create(my_iosys->io_comm, 0, peer_comm,
@@ -910,17 +960,21 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 	    if (io_comm != MPI_COMM_NULL)
 	    {
 		comp_master = 0;
-		mpierr = MPI_Bcast(&my_iosys->num_comptasks, 1, MPI_INT, comp_master, my_iosys->intercomm);
+		mpierr = MPI_Bcast(&my_iosys->num_comptasks, 1, MPI_INT, comp_master,
+				   my_iosys->intercomm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);				
-		mpierr = MPI_Bcast(&my_iosys->num_iotasks, 1, MPI_INT, io_master, my_iosys->intercomm);
+		mpierr = MPI_Bcast(&my_iosys->num_iotasks, 1, MPI_INT, io_master,
+				   my_iosys->intercomm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	    }
 	    else
 	    {
 		io_master = 0;
-		mpierr = MPI_Bcast(&my_iosys->num_comptasks, 1, MPI_INT, comp_master, my_iosys->intercomm);
+		mpierr = MPI_Bcast(&my_iosys->num_comptasks, 1, MPI_INT, comp_master,
+				   my_iosys->intercomm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);				
-		mpierr = MPI_Bcast(&my_iosys->num_iotasks, 1, MPI_INT, io_master, my_iosys->intercomm);
+		mpierr = MPI_Bcast(&my_iosys->num_iotasks, 1, MPI_INT, io_master,
+				   my_iosys->intercomm);
 		CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	    }
 
@@ -1036,8 +1090,8 @@ int PIOc_Init_Intracomm(const MPI_Comm comp_comm,
       iosys->intercomm = MPI_COMM_NULL;
       iosys->error_handler = PIO_INTERNAL_ERROR;
       iosys->async_interface= false;
-      iosys->compmaster = false;
-      iosys->iomaster = false;
+      iosys->compmaster = 0;
+      iosys->iomaster = 0;
       iosys->ioproc = false;
       iosys->default_rearranger = rearr;
       iosys->num_iotasks = num_iotasks;
@@ -1048,7 +1102,7 @@ int PIOc_Init_Intracomm(const MPI_Comm comp_comm,
       CheckMPIReturn(MPI_Comm_rank(iosys->comp_comm, &(iosys->comp_rank)),__FILE__,__LINE__);
       CheckMPIReturn(MPI_Comm_size(iosys->comp_comm, &(iosys->num_comptasks)),__FILE__,__LINE__);
       if(iosys->comp_rank==0)
-	  iosys->compmaster = true;  
+	  iosys->compmaster = MPI_ROOT;  
 
       /* Ensure that settings for number of computation tasks, number
        * of IO tasks, and the stride are reasonable. */
@@ -1078,7 +1132,7 @@ int PIOc_Init_Intracomm(const MPI_Comm comp_comm,
       iosys->info = MPI_INFO_NULL;
 
       if(iosys->comp_rank == iosys->ioranks[0])
-	  iosys->iomaster = true;
+	  iosys->iomaster = MPI_ROOT;
 
       /* Create a group for the computation tasks. */
       CheckMPIReturn(MPI_Comm_group(iosys->comp_comm, &(iosys->compgroup)),__FILE__,__LINE__);

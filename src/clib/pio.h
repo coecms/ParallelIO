@@ -185,11 +185,13 @@ typedef struct iosystem_desc_t
    * process is not part of the IO communicator. */
   int io_rank;
 
-  /** True if this task is the master of IO communicator. */
-  bool iomaster;
+  /** Set to MPI_ROOT if this task is the master of IO communicator, 0
+   * otherwise. */
+  int iomaster;
 
-  /** True if this task is the master of computation communicator. */
-  bool compmaster;
+  /** Set to MPI_ROOT if this task is the master of comp communicator, 0
+   * otherwise. */
+  int compmaster;
 
   /** Rank of IO root task (which is rank 0 in io_comm) in the union
    * communicator. */

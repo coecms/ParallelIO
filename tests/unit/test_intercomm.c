@@ -12,35 +12,23 @@
  * the ParallelIO library. */
 #define NUM_NETCDF_FLAVORS 4
 
-/** The number of dimensions in the example data. In this test, we
- * are using three-dimensional data. */
-#define NDIM 3
+/** The number of dimensions in the test data. */
+#define NDIM 1
 
-/** The length of our sample data along each dimension. */
-/**@{*/
-#define X_DIM_LEN 400
-#define Y_DIM_LEN 400
-/**@}*/
+/** The length of our test data. */
+#define DIM_LEN 4
 
-/** The number of timesteps of data to write. */
-#define NUM_TIMESTEPS 6
+/** The length of data on each (of 2) computational task. */
+#define LOCAL_DIM_LEN 2
+
+/** The name of the dimension in the netCDF output file. */
+#define DIM_NAME "dim_test_intercomm"
 
 /** The name of the variable in the netCDF output file. */
-#define VAR_NAME "foo"
-
-/** The meaning of life, the universe, and everything. */
-#define START_DATA_VAL 42
+#define VAR_NAME "var_test_intercomm"
 
 /** Error code for when things go wrong. */
 #define ERR_AWFUL 1111
-
-/** Values for some netcdf-4 settings. */
-/**@{*/
-#define VAR_CACHE_SIZE (1024 * 1024)
-#define VAR_CACHE_NELEMS 10
-#define VAR_CACHE_PREEMPTION 0.5
-/**@}*/
-
 
 /** Handle MPI errors. This should only be used with MPI library
  * function calls. */
@@ -68,16 +56,7 @@ char err_buffer[MPI_MAX_ERROR_STRING];
  * int the global error string. */
 int resultlen;
 
-/** The dimension names. */
-char dim_name[NDIM][NC_MAX_NAME + 1] = {"timestep", "x", "y"};
-
-/** Length of the dimensions in the sample data. */
-int dim_len[NDIM] = {NC_UNLIMITED, X_DIM_LEN, Y_DIM_LEN};
-
-/** Length of chunksizes to use in netCDF-4 files. */
-size_t chunksize[NDIM] = {2, X_DIM_LEN/2, Y_DIM_LEN/2};
-
-/** Run Tests for NetCDF-4 Functions.
+/** Run Tests for Init_Intercomm
  *
  * @param argc argument count
  * @param argv array of arguments
@@ -121,9 +100,6 @@ main(int argc, char **argv)
 
     /** Zero based rank of first processor to be used for I/O. */
     int ioproc_start = 0;
-
-    /** The dimension IDs. */
-    int dimids[NDIM];
 
     /** Array index per processing unit. */
     PIO_Offset elements_per_pe;
@@ -241,6 +217,7 @@ main(int argc, char **argv)
     // Get the group of processes in MPI_COMM_WORLD
     MPI_Group world_group;
     MPI_Comm_group(MPI_COMM_WORLD, &world_group);
+    int comp_task;
 
     if (my_rank == 0 || my_rank == 1)
     {
@@ -254,6 +231,8 @@ main(int argc, char **argv)
 	MPI_Comm_create_group(MPI_COMM_WORLD, comp_group, 0, &comp_comms);
 	if (verbose)
 	    printf("%d: included in comp_group.\n", my_rank);
+
+	comp_task = 1;
     }
     else
     {
@@ -267,6 +246,8 @@ main(int argc, char **argv)
 	MPI_Comm_create_group(MPI_COMM_WORLD, io_group, 0, &io_comm);
 	if (verbose)
 	    printf("%d: included in io_group.\n", my_rank);
+
+	comp_task = 0;
     }
     
     if ((ret = PIOc_Init_Intercomm(COMPONENT_COUNT, MPI_COMM_WORLD, &comp_comms,
@@ -276,11 +257,52 @@ main(int argc, char **argv)
 	printf("rank: %d init intercomm returned %d iosysid = %d\n", my_rank, ret,
 	       iosysid);
 
+    /* All the netCDF calls are only executed on the computation
+     * tasks. The IO tasks have not returned from PIOc_Init_Intercomm,
+     * and when the do, they should go straight to finalize. */
+    if (comp_task)
+    {
+	for (int fmt = 0; fmt < NUM_NETCDF_FLAVORS; fmt++)
+	{
+	    int ncid, varid, dimid;
+	    PIO_Offset start[NDIM], count[NDIM] = {0};
+	    int data[LOCAL_DIM_LEN];
+	
+	    /* /\* Create a netCDF file with one dimension and one variable. *\/ */
+	    /* if (verbose) */
+	    /* 	printf("rank: %d creating file %s\n", my_rank, filename[fmt]); */
+	    /* if ((ret = PIOc_createfile(iosysid, &ncid, &format[fmt], filename[fmt], */
+	    /* 			       NC_CLOBBER))) */
+	    /* 	ERR(ret); */
+	    /* if (verbose) */
+	    /* 	printf("rank: %d defining dimension %s\n", my_rank, DIM_NAME); */
+	    /* if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid))) */
+	    /* 	ERR(ret); */
+	    /* if (verbose) */
+	    /* 	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME); */
+	    /* if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid))) */
+	    /* 	ERR(ret); */
+
+	    /* /\* Write some data. *\/ */
+	    /* for (int i = 0; i < LOCAL_DIM_LEN; i++) */
+	    /* 	data[i] = my_rank; */
+	    /* if (verbose) */
+	    /* 	printf("rank: %d writing data\n", my_rank); */
+	    /* start[0] = !my_rank ? 0 : 2; */
+	    /* if ((ret = PIOc_put_vara_int(ncid, varid, start, count, data))) */
+	    /* 	ERR(ret); */
+
+	    /* /\* Close the file. *\/ */
+	    /* if ((ret = PIOc_closefile(ncid))) */
+	    /* 	ERR(ret); */
+	} /* next netcdf format flavor */
+    }
+
     /* Free local MPI resources. */
     if (verbose)
 	printf("rank: %d Freeing local MPI resources...\n", my_rank);
     MPI_Group_free(&world_group);
-    if (my_rank == 0 || my_rank == 1)
+    if (comp_task)
     {
 	MPI_Group_free(&comp_group);
 	MPI_Comm_free(&comp_comms);

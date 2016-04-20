@@ -196,14 +196,25 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
   msg = PIO_MSG_CREATE_FILE;
   file->mode = mode;
 
+  int my_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  printf("%d PIOc_createfile\n", my_rank);
 
   if(ios->async_interface && ! ios->ioproc){
     if(ios->comp_rank==0) 
       mpierr = MPI_Send( &msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     len = strlen(filename);
-    mpierr = MPI_Bcast((void *) filename,len, MPI_CHAR, ios->compmaster, ios->intercomm);
+    printf("%d bcasting len = %d filename = %s iotype = %d mode = %d ios->compmaster = %d\n",
+	   my_rank, len, filename, file->iotype, file->mode, ios->compmaster);
+    if (!ios->compmaster)
+	ios->compmaster = MPI_PROC_NULL;
+    mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    printf("%d bcasting len = %d filename = %s iotype = %d mode = %d\n",
+	   my_rank, len, filename, file->iotype, file->mode);
+    mpierr = MPI_Bcast((void *) filename, len + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&(file->iotype), 1, MPI_INT,  ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&file->mode, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    printf("%d bcasting complete\n", my_rank);
   }
   
 
@@ -216,7 +227,7 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
       //      printf("%d %d %d %d %d \n",__LINE__,file->mode,PIO_64BIT_DATA, PIO_64BIT_OFFSET, NC_MPIIO);
       file->mode = file->mode |  NC_MPIIO | NC_NETCDF4;
       //printf("%s %d %d %d\n",__FILE__,__LINE__,file->mode, NC_MPIIO| NC_NETCDF4);
-      ierr = nc_create_par(filename, file->mode, ios->io_comm,ios->info  , &(file->fh));
+      ierr = nc_create_par(filename, file->mode, ios->io_comm, ios->info, &(file->fh));
       break;
     case PIO_IOTYPE_NETCDF4C:
       file->mode = file->mode | NC_NETCDF4;
@@ -229,6 +240,7 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
 #endif
 #ifdef _PNETCDF
     case PIO_IOTYPE_PNETCDF:
+	printf("%d about to call ncmpi_create info = %d\n", my_rank, ios->info);
       ierr = ncmpi_create(ios->io_comm, filename, file->mode, ios->info, &(file->fh));
       if(ierr == PIO_NOERR){
 	if(ios->io_rank==0){
