@@ -170,11 +170,11 @@ main(int argc, char **argv)
     /** Index for loops. */
     int fmt, d, d1, i;
     
-/* #ifdef TIMING     */
-/*     /\* Initialize the GPTL timing library. *\/ */
-/*     if ((ret = GPTLinitialize ())) */
-/* 	return ret; */
-/* #endif     */
+#ifdef TIMING
+    /* Initialize the GPTL timing library. */
+    if ((ret = GPTLinitialize ()))
+	return ret;
+#endif
     
     /* Initialize MPI. */
     if ((ret = MPI_Init(&argc, &argv)))
@@ -189,9 +189,9 @@ main(int argc, char **argv)
     /* Check that a valid number of processors was specified. */
     if (!(ntasks == 1 || ntasks == 2 || ntasks == 4 ||
 	  ntasks == 8 || ntasks == 16))
-	fprintf(stderr, "Number of processors must be 1, 2, 4, 8, or 16!\n");
+	fprintf(stderr, "test_intercomm Number of processors must be 1, 2, 4, 8, or 16!\n");
     if (verbose)
-	printf("%d: ParallelIO Library test_intercomm running on %d processors.\n",
+	printf("%d: test_intercomm ParallelIO Library test_intercomm running on %d processors.\n",
 	       my_rank, ntasks);
 
     /* keep things simple - 1 iotask per MPI process */    
@@ -230,7 +230,7 @@ main(int argc, char **argv)
 	MPI_Group_incl(world_group, n, ranks, &comp_group);
 	MPI_Comm_create_group(MPI_COMM_WORLD, comp_group, 0, &comp_comms);
 	if (verbose)
-	    printf("%d: included in comp_group.\n", my_rank);
+	    printf("%d test_intercomm included in comp_group.\n", my_rank);
 
 	comp_task = 1;
     }
@@ -245,7 +245,7 @@ main(int argc, char **argv)
 	MPI_Group_incl(world_group, n, ranks, &io_group);
 	MPI_Comm_create_group(MPI_COMM_WORLD, io_group, 0, &io_comm);
 	if (verbose)
-	    printf("%d: included in io_group.\n", my_rank);
+	    printf("%d test_intercomm included in io_group.\n", my_rank);
 
 	comp_task = 0;
     }
@@ -254,7 +254,7 @@ main(int argc, char **argv)
 				   io_comm, &iosysid)))
 	ERR(ret);
     if (verbose)
-	printf("rank: %d init intercomm returned %d iosysid = %d\n", my_rank, ret,
+	printf("%d test_intercomm init intercomm returned %d iosysid = %d\n", my_rank, ret,
 	       iosysid);
 
     /* All the netCDF calls are only executed on the computation
@@ -268,20 +268,29 @@ main(int argc, char **argv)
 	    PIO_Offset start[NDIM], count[NDIM] = {0};
 	    int data[LOCAL_DIM_LEN];
 	
-	    /* /\* Create a netCDF file with one dimension and one variable. *\/ */
+	    /* Create a netCDF file with one dimension and one variable. */
+	    if (verbose)
+	    	printf("%d test_intercomm creating file %s\n", my_rank, filename[fmt]);
+	    if ((ret = PIOc_createfile(iosysid, &ncid, &format[fmt], filename[fmt],
+	    			       NC_CLOBBER)))
+	    	ERR(ret);
+	    if (verbose)
+	    	printf("%d test_intercomm file created ncid = %d\n", my_rank, ncid);
+	    
 	    /* if (verbose) */
-	    /* 	printf("rank: %d creating file %s\n", my_rank, filename[fmt]); */
-	    /* if ((ret = PIOc_createfile(iosysid, &ncid, &format[fmt], filename[fmt], */
-	    /* 			       NC_CLOBBER))) */
-	    /* 	ERR(ret); */
-	    /* if (verbose) */
-	    /* 	printf("rank: %d defining dimension %s\n", my_rank, DIM_NAME); */
+	    /* 	printf("%d defining dimension %s\n", my_rank, DIM_NAME); */
 	    /* if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid))) */
 	    /* 	ERR(ret); */
 	    /* if (verbose) */
 	    /* 	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME); */
 	    /* if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid))) */
 	    /* 	ERR(ret); */
+
+	    /* Close the file. */
+	    if (verbose)
+	    	printf("%d test_intercomm ending define mode ncid = %d\n", my_rank, ncid);
+	    if ((ret = PIOc_enddef(ncid)))
+	    	ERR(ret);
 
 	    /* /\* Write some data. *\/ */
 	    /* for (int i = 0; i < LOCAL_DIM_LEN; i++) */
@@ -292,15 +301,17 @@ main(int argc, char **argv)
 	    /* if ((ret = PIOc_put_vara_int(ncid, varid, start, count, data))) */
 	    /* 	ERR(ret); */
 
-	    /* /\* Close the file. *\/ */
-	    /* if ((ret = PIOc_closefile(ncid))) */
-	    /* 	ERR(ret); */
+	    /* Close the file. */
+	    if (verbose)
+	    	printf("%d test_intercomm closing file ncid = %d\n", my_rank, ncid);
+	    if ((ret = PIOc_closefile(ncid)))
+	    	ERR(ret);
 	} /* next netcdf format flavor */
     }
 
     /* Free local MPI resources. */
     if (verbose)
-	printf("rank: %d Freeing local MPI resources...\n", my_rank);
+	printf("%d test_intercomm Freeing local MPI resources...\n", my_rank);
     MPI_Group_free(&world_group);
     if (comp_task)
     {
@@ -315,18 +326,18 @@ main(int argc, char **argv)
     
     /* Finalize the IO system. */
     if (verbose)
-	printf("rank: %d Freeing PIO resources...\n", my_rank);
+	printf("%d test_intercomm Freeing PIO resources...\n", my_rank);
     if ((ret = PIOc_finalize(iosysid)))
     	ERR(ret);
 
     /* Finalize the MPI library. */
     MPI_Finalize();
 
-/* #ifdef TIMING     */
-/*     /\* Finalize the GPTL timing library. *\/ */
-/*     if ((ret = GPTLfinalize ())) */
-/* 	return ret; */
-/* #endif     */
+#ifdef TIMING
+    /* Finalize the GPTL timing library. */
+    if ((ret = GPTLfinalize ()))
+	return ret;
+#endif
 
     return 0;
 }

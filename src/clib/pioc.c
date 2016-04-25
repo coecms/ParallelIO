@@ -384,6 +384,94 @@ int create_file_handler(iosystem_desc_t *ios)
     return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks to close a netCDF file. It is
+ * only ever run on the IO tasks. 
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int close_file_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d close_file_handler\n", my_rank);
+
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d create_file_handler got parameter ncid = %d\n", my_rank, ncid);
+
+    /* Call the close file function. */
+    if ((ret = PIOc_closefile(ncid)))
+	return ret;
+    
+    printf("%d close_file_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
+/** This function is run on the IO tasks to sync a netCDF file. 
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int sync_file_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d sync_file_handler\n", my_rank);
+
+    /* Get the parameters for this function that the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d sync_file_handler got parameter ncid = %d\n", my_rank, ncid);
+
+    /* Call the sync file function. */
+    if ((ret = PIOc_sync(ncid)))
+	return ret;
+    
+    printf("%d sync_file_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
+/** This function is run on the IO tasks to enddef a netCDF file. 
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int enddef_file_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d enddef_file_handler\n", my_rank);
+
+    /* Get the parameters for this function that the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d enddef_file_handler got parameter ncid = %d\n", my_rank, ncid);
+
+    /* Call the sync file function. */
+    if ((ret = PIOc_enddef(ncid)))
+	return ret;
+    
+    printf("%d enddef_file_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
 int open_file_handler(iosystem_desc_t *ios)
 {
     return PIO_NOERR;
@@ -458,26 +546,28 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     printf("%d pio_msg_handler called\n", my_rank);
     
     /* Initialize the request array. */
-    for (int cmp = 0; cmp < component_count; cmp++)
-	req[cmp] = MPI_REQUEST_NULL;
-
-    /* Have IO comm rank 0 (the ioroot) wait for a message from the comproot. */
-    if (!io_rank)
-    {
-	for (int cmp = 0; cmp < component_count; cmp++)
-	{
-	    my_iosys = &iosys[cmp];
-	    printf("%d about to call MPI_Recv\n", my_rank);	    
-	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
-			      &req[cmp]);
-	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	    printf("%d got msg = %d req[%d] = %d\n", my_rank, msg, cmp, req[cmp]);
-	}
-    }
-
     /* If the message is not -1, keep processing messages. */
     while (msg != -1)
     {
+	/* Reset request handles to MPI_REQUEST_NULL. */
+	for (int cmp = 0; cmp < component_count; cmp++)
+	    req[cmp] = MPI_REQUEST_NULL;
+
+	/* Have IO comm rank 0 (the ioroot) register to receive
+	 * (non-blocking) for a message from each of the comproots. */
+	if (!io_rank)
+	{
+	    for (int cmp = 0; cmp < component_count; cmp++)
+	    {
+		my_iosys = &iosys[cmp];
+		printf("%d about to call MPI_Irecv\n", my_rank);	    
+		mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+				   &req[cmp]);
+		CheckMPIReturn(mpierr, __FILE__, __LINE__);
+		printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);	    
+	    }
+	}
+
 	/* For the io root task, wait until any one of the requests are complete. */
 	if (!io_rank)
 	{
@@ -485,20 +575,22 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 		   my_rank, req[0], MPI_REQUEST_NULL);	    
 	    mpierr = MPI_Waitany(component_count, req, &index, &status);
 	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	    printf("%d Waitany returned index = %d\n", my_rank, index);
 	}
 
 	/* Broadcast the index of the computational component that
 	 * originated the request to the rest of the IO tasks. */
-	printf("%d about to call MPI_Bcast\n", my_rank);	    
+	printf("%d about to call index MPI_Bcast index = %d\n", my_rank, index);	    
 	mpierr = MPI_Bcast(&index, 1, MPI_INT, 0, iosys->io_comm);
 	CheckMPIReturn(mpierr, __FILE__, __LINE__);
 	my_iosys = &iosys[index];
-	printf("%d MPI_Bcast complete index = %d\n", my_rank, index);	    	
+	printf("%d index MPI_Bcast complete index = %d\n", my_rank, index);	    	
 
 	/* Broadcast the msg value to the rest of the IO tasks. */
+	printf("%d about to call msg MPI_Bcast\n", my_rank);	    
 	mpierr = MPI_Bcast(&msg, 1, MPI_INT, 0, my_iosys->io_comm);
 	CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	printf("%d MPI_Bcast complete msg = %d\n", my_rank, msg);	    	
+	printf("%d msg MPI_Bcast complete msg = %d\n", my_rank, msg);	    	
 
 	/* Handle the message. This code is run on all IO tasks. */
 	switch (msg)
@@ -506,8 +598,17 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	case PIO_MSG_CREATE_FILE:
 	    create_file_handler(my_iosys);
 	    break;
+	case PIO_MSG_SYNC:
+	    sync_file_handler(my_iosys);
+	    break;
+	case PIO_MSG_ENDDEF:
+	    enddef_file_handler(my_iosys);
+	    break;
 	case PIO_MSG_OPEN_FILE:
 	    open_file_handler(my_iosys);
+	    break;
+	case PIO_MSG_CLOSE_FILE:
+	    close_file_handler(my_iosys);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);

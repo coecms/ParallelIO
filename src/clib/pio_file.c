@@ -202,7 +202,7 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
 
   if(ios->async_interface && ! ios->ioproc){
     if(ios->comp_rank==0) 
-      mpierr = MPI_Send( &msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
+      mpierr = MPI_Send(&msg, 1, MPI_INT, ios->ioroot, 1, ios->union_comm);
     len = strlen(filename);
     printf("%d bcasting len = %d filename = %s iotype = %d mode = %d ios->compmaster = %d\n",
 	   my_rank, len, filename, file->iotype, file->mode, ios->compmaster);
@@ -249,6 +249,7 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
 	int oldfill;
 	ierr = ncmpi_buffer_attach(file->fh, PIO_BUFFER_SIZE_LIMIT );
 	//	ierr = ncmpi_set_fill(file->fh, NC_FILL, &oldfill);
+	printf("%d file->fh = %d\n", my_rank, file->fh);
       }
       break;
 #endif
@@ -262,8 +263,9 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
   if(ierr == PIO_NOERR){
     mpierr = MPI_Bcast(&(file->mode), 1, MPI_INT,  ios->ioroot, ios->union_comm);
     file->mode = file->mode | PIO_WRITE;  // This flag is implied by netcdf create functions but we need to know if its set
-    pio_add_to_file_list(file);
+    mpierr = MPI_Bcast(&(file->fh), 1, MPI_INT,  ios->ioroot, ios->union_comm);
     *ncidp = file->fh;
+    pio_add_to_file_list(file);
   }
   if(ios->io_rank==0){
     printf("Create file %s %d\n",filename,file->fh); //,file->fh,file->id,ios->io_rank,ierr);
@@ -287,18 +289,31 @@ int PIOc_closefile(int ncid)
 
   ierr = PIO_NOERR;
 
+  int my_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  printf("%d PIOc_closefile ncid = %d PIO_MSG_CLOSE_FILE = %d\n", my_rank, ncid,
+	 PIO_MSG_CLOSE_FILE);
+
   file = pio_get_file_from_id(ncid);
   if(file == NULL)
     return PIO_EBADID;
   ios = file->iosystem;
-  msg = 0;
+  msg = PIO_MSG_CLOSE_FILE;
   if((file->mode & PIO_WRITE)){
     PIOc_sync(ncid);
   }
-  if(ios->async_interface && ! ios->ioproc){
-    if(ios->comp_rank==0) 
-      mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+
+  /* If async is in use and this is a comp tasks, then the compmaster
+   * sends a msg to the pio_msg_handler running on the IO master and
+   * waiting for a message. Then broadcast the ncid over the intercomm
+   * to the IO tasks. */
+  printf("%d PIOc_closefile ios->ioproc = %d\n", my_rank, ios->ioproc);
+  if(ios->async_interface && !ios->ioproc){
+      if(ios->comp_rank==0) {
+	  printf("%d PIOc_closefile about to call MPI_Send msg = %d\n", my_rank, msg);
+	  mpierr = MPI_Send(&msg, 1, MPI_INT, ios->ioroot, 1, ios->union_comm);
+      }
+    mpierr = MPI_Bcast(&(file->fh), 1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
   if(ios->ioproc){
@@ -408,6 +423,10 @@ int PIOc_sync (int ncid)
   file_desc_t *file;
   wmulti_buffer *wmb, *twmb;
 
+  int my_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  printf("%d PIOc_sync ncid = %d\n", my_rank, ncid);
+
   ierr = PIO_NOERR;
 
   file = pio_get_file_from_id(ncid);
@@ -419,7 +438,8 @@ int PIOc_sync (int ncid)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    printf("%d PIOc_sync comp task Bcast file->fh = %d\n", my_rank, file->fh);
   }
 
   if((file->mode & PIO_WRITE)){
@@ -440,6 +460,7 @@ int PIOc_sync (int ncid)
       }
     }
     flush_output_buffer(file, true, 0);
+    printf("%d PIOc_sync flushed internal output buffer.\n", my_rank, file->fh);
 
     if(ios->ioproc){
       switch(file->iotype){
@@ -458,6 +479,7 @@ int PIOc_sync (int ncid)
 #endif
 #ifdef _PNETCDF
       case PIO_IOTYPE_PNETCDF:
+	printf("%d PIOc_sync calling ncmpi_sync file->fh = %d\n", my_rank, file->fh);
 	ierr = ncmpi_sync(file->fh);;
 	break;
 #endif

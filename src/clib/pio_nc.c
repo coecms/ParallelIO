@@ -47,7 +47,7 @@ int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdimidp
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -127,7 +127,7 @@ int PIOc_inq_dimname (int ncid, int dimid, char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -207,7 +207,7 @@ int PIOc_put_att_short (int ncid, int varid, const char *name, nc_type xtype, PI
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -279,7 +279,7 @@ int PIOc_rename_dim (int ncid, int dimid, const char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -352,7 +352,7 @@ int PIOc_get_att_double (int ncid, int varid, const char *name, double *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -429,7 +429,7 @@ int PIOc_set_fill (int ncid, int fillmode, int *old_modep)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -503,7 +503,7 @@ int PIOc_def_var (int ncid, const char *name, nc_type xtype, int ndims, const in
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -584,7 +584,7 @@ int PIOc_put_att_double (int ncid, int varid, const char *name, nc_type xtype, P
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -657,7 +657,7 @@ int PIOc_inq_dim (int ncid, int dimid, char *name, PIO_Offset *lenp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -738,7 +738,7 @@ int PIOc_get_att_uchar (int ncid, int varid, const char *name, unsigned char *ip
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -816,7 +816,7 @@ int PIOc_inq_var_fill (int ncid, int varid, int *no_fill, void *fill_value)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -891,7 +891,7 @@ int PIOc_inq_attid (int ncid, int varid, const char *name, int *idp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -966,7 +966,7 @@ int PIOc_inq_vartype (int ncid, int varid, nc_type *xtypep)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1040,7 +1040,7 @@ int PIOc_put_att_schar (int ncid, int varid, const char *name, nc_type xtype, PI
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1113,7 +1113,7 @@ int PIOc_inq_vardimid (int ncid, int varid, int *dimidsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1191,7 +1191,7 @@ int PIOc_get_att_ushort (int ncid, int varid, const char *name, unsigned short *
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1270,7 +1270,7 @@ int PIOc_inq_varid (int ncid, const char *name, int *varidp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1345,7 +1345,7 @@ int PIOc_inq_attlen (int ncid, int varid, const char *name, PIO_Offset *lenp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1420,7 +1420,7 @@ int PIOc_inq_atttype (int ncid, int varid, const char *name, nc_type *xtypep)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1494,7 +1494,7 @@ int PIOc_rename_var (int ncid, int varid, const char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1566,7 +1566,7 @@ int PIOc_inq_natts (int ncid, int *ngattsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1640,7 +1640,7 @@ int PIOc_put_att_ulonglong (int ncid, int varid, const char *name, nc_type xtype
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1715,7 +1715,7 @@ int PIOc_inq_var (int ncid, int varid, char *name, nc_type *xtypep, int *ndimsp,
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1803,7 +1803,7 @@ int PIOc_rename_att (int ncid, int varid, const char *name, const char *newname)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1876,7 +1876,7 @@ int PIOc_put_att_ushort (int ncid, int varid, const char *name, nc_type xtype, P
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -1949,7 +1949,7 @@ int PIOc_inq_dimid (int ncid, const char *name, int *idp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2023,7 +2023,7 @@ int PIOc_put_att_text (int ncid, int varid, const char *name, PIO_Offset len, co
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2096,7 +2096,7 @@ int PIOc_get_att_uint (int ncid, int varid, const char *name, unsigned int *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2174,7 +2174,7 @@ int PIOc_inq_format (int ncid, int *formatp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2248,7 +2248,7 @@ int PIOc_get_att_long (int ncid, int varid, const char *name, long *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2327,7 +2327,7 @@ int PIOc_inq_attname (int ncid, int varid, int attnum, char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2409,7 +2409,7 @@ int PIOc_inq_att (int ncid, int varid, const char *name, nc_type *xtypep, PIO_Of
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2484,7 +2484,7 @@ int PIOc_put_att_long (int ncid, int varid, const char *name, nc_type xtype, PIO
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2556,7 +2556,7 @@ int PIOc_inq_unlimdim (int ncid, int *unlimdimidp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2630,7 +2630,7 @@ int PIOc_get_att_float (int ncid, int varid, const char *name, float *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2707,7 +2707,7 @@ int PIOc_inq_ndims (int ncid, int *ndimsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2781,7 +2781,7 @@ int PIOc_put_att_int (int ncid, int varid, const char *name, nc_type xtype, PIO_
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2853,7 +2853,7 @@ int PIOc_inq_nvars (int ncid, int *nvarsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2926,7 +2926,7 @@ int PIOc_enddef (int ncid)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2999,7 +2999,7 @@ int PIOc_put_att_uchar (int ncid, int varid, const char *name, nc_type xtype, PI
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3072,7 +3072,7 @@ int PIOc_put_att_longlong (int ncid, int varid, const char *name, nc_type xtype,
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3146,7 +3146,7 @@ int PIOc_inq_varnatts (int ncid, int varid, int *nattsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3220,7 +3220,7 @@ int PIOc_get_att_ubyte (int ncid, int varid, const char *name, unsigned char *ip
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3298,7 +3298,7 @@ int PIOc_get_att_text (int ncid, int varid, const char *name, char *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3376,7 +3376,7 @@ int PIOc_del_att (int ncid, int varid, const char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3449,7 +3449,7 @@ int PIOc_inq_dimlen (int ncid, int dimid, PIO_Offset *lenp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3523,7 +3523,7 @@ int PIOc_get_att_schar (int ncid, int varid, const char *name, signed char *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3601,7 +3601,7 @@ int PIOc_get_att_ulonglong (int ncid, int varid, const char *name, unsigned long
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3683,7 +3683,7 @@ int PIOc_inq_varndims (int ncid, int varid, int *ndimsp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3758,7 +3758,7 @@ int PIOc_inq_varname (int ncid, int varid, char *name)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3838,7 +3838,7 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3912,7 +3912,7 @@ int PIOc_put_att_uint (int ncid, int varid, const char *name, nc_type xtype, PIO
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3985,7 +3985,7 @@ int PIOc_get_att_short (int ncid, int varid, const char *name, short *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -4062,7 +4062,7 @@ int PIOc_redef (int ncid)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -4135,7 +4135,7 @@ int PIOc_put_att_ubyte (int ncid, int varid, const char *name, nc_type xtype, PI
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -4208,7 +4208,7 @@ int PIOc_get_att_int (int ncid, int varid, const char *name, int *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -4286,7 +4286,7 @@ int PIOc_get_att_longlong (int ncid, int varid, const char *name, long long *ip)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -4364,7 +4364,7 @@ int PIOc_put_att_float (int ncid, int varid, const char *name, nc_type xtype, PI
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, 0, ios->intercomm);
+    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
