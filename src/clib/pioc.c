@@ -545,30 +545,29 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     printf("%d pio_msg_handler called\n", my_rank);
     
-    /* Initialize the request array. */
+    /* Set request handles to MPI_REQUEST_NULL. */
+    for (int cmp = 0; cmp < component_count; cmp++)
+	req[cmp] = MPI_REQUEST_NULL;
+
+    /* Have IO comm rank 0 (the ioroot) register to receive
+     * (non-blocking) for a message from each of the comproots. */
+    if (!io_rank)
+    {
+	for (int cmp = 0; cmp < component_count; cmp++)
+	{
+	    my_iosys = &iosys[cmp];
+	    printf("%d about to call MPI_Irecv\n", my_rank);	    
+	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+			       &req[cmp]);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	    printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);	    
+	}
+    }
+
     /* If the message is not -1, keep processing messages. */
     while (msg != -1)
     {
-	/* Reset request handles to MPI_REQUEST_NULL. */
-	for (int cmp = 0; cmp < component_count; cmp++)
-	    req[cmp] = MPI_REQUEST_NULL;
-
-	/* Have IO comm rank 0 (the ioroot) register to receive
-	 * (non-blocking) for a message from each of the comproots. */
-	if (!io_rank)
-	{
-	    for (int cmp = 0; cmp < component_count; cmp++)
-	    {
-		my_iosys = &iosys[cmp];
-		printf("%d about to call MPI_Irecv\n", my_rank);	    
-		mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
-				   &req[cmp]);
-		CheckMPIReturn(mpierr, __FILE__, __LINE__);
-		printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);	    
-	    }
-	}
-
-	/* For the io root task, wait until any one of the requests are complete. */
+	/* Wait until any one of the requests are complete. */
 	if (!io_rank)
 	{
 	    printf("%d about to call MPI_Waitany req[0] = %d MPI_REQUEST_NULL = %d\n",
@@ -645,8 +644,20 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    msg = -1;
 	    break;
 	default:
-	    pio_callback_handler(my_iosys,msg);
+	    pio_callback_handler(my_iosys, msg);
 	}
+
+	/* Unless finalize was called, listen for another msg from the
+	 * component whose message we just handled. */
+	if (!io_rank && msg != -1)
+	{
+	    printf("%d about to call MPI_Irecv\n", my_rank);	    
+	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+			       &req[index]);
+	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
+	    printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);
+	}
+	
     }
     
     return PIO_NOERR;
