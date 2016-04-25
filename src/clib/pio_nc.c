@@ -2851,7 +2851,7 @@ int PIOc_inq_nvars (int ncid, int *nvarsp)
   msg = PIO_MSG_INQ_NVARS;
 
   if(ios->async_interface && ! ios->ioproc){
-    if(ios->compmaster) 
+    if(!ios->comp_rank) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
@@ -2924,8 +2924,9 @@ int PIOc_enddef (int ncid)
   msg = PIO_MSG_ENDDEF;
 
   if(ios->async_interface && ! ios->ioproc){
-    if(ios->compmaster) 
+    if(!ios->comp_rank) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
+    printf("PIOc_enddef file->fh = %d\n", file->fh);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
@@ -3825,9 +3826,15 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
   iosystem_desc_t *ios;
   file_desc_t *file;
   char *errstr;
+  int namelen;
 
   errstr = NULL;
   ierr = PIO_NOERR;
+
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d PIOc_def_dim ncid = %d name = %s len = %d\n", my_rank,
+	   ncid, name, len);
 
   file = pio_get_file_from_id(ncid);
   if(file == NULL)
@@ -3839,6 +3846,13 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    namelen = strlen(name);
+    printf("bcasting namelen = %d name = %s len = %d\n", namelen, name, len);
+    if (!ios->compmaster)
+	ios->compmaster = MPI_PROC_NULL;
+    mpierr = MPI_Bcast(&namelen, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
   }
 
 
@@ -3872,7 +3886,7 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(idp , 1, MPI_INT, ios->ioroot, ios->my_comm);
+    mpierr = MPI_Bcast(idp , 1, MPI_INT, ios->ioroot, ios->union_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }

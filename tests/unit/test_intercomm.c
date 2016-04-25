@@ -262,8 +262,7 @@ main(int argc, char **argv)
      * and when the do, they should go straight to finalize. */
     if (comp_task)
     {
-	/* for (int fmt = 0; fmt < NUM_NETCDF_FLAVORS; fmt++) */
-	for (int fmt = 0; fmt < 1; fmt++)
+	for (int fmt = 0; fmt < NUM_NETCDF_FLAVORS; fmt++) 
 	{
 	    int ncid, varid, dimid;
 	    PIO_Offset start[NDIM], count[NDIM] = {0};
@@ -278,10 +277,10 @@ main(int argc, char **argv)
 	    if (verbose)
 	    	printf("%d test_intercomm file created ncid = %d\n", my_rank, ncid);
 	    
-	    /* if (verbose) */
-	    /* 	printf("%d defining dimension %s\n", my_rank, DIM_NAME); */
-	    /* if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid))) */
-	    /* 	ERR(ret); */
+	    if (verbose)
+	    	printf("%d defining dimension %s\n", my_rank, DIM_NAME);
+	    if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid)))
+	    	ERR(ret);
 	    /* if (verbose) */
 	    /* 	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME); */
 	    /* if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid))) */

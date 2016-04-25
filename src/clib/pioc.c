@@ -472,6 +472,51 @@ int enddef_file_handler(iosystem_desc_t *ios)
     return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks to define a netCDF
+ * dimension. */
+int def_dim_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int len, namelen;
+    int iotype;
+    char *name;
+    int mode;
+    int mpierr;
+    int ret;
+    int dimid;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d def_dim_handler comproot = %d\n", my_rank, ios->comproot);
+
+    /* Get the parameters for this function that the he comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&namelen, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if (!(name = malloc(namelen + 1 * sizeof(char))))
+    	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, 0,
+    			    ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&len, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d def_dim_handler got parameters namelen = %d "
+    	   "name = %s len = %d ncid = %d\n",
+    	   my_rank, namelen, name, len, ncid);
+
+    /* Call the create file function. */
+    if ((ret = PIOc_def_dim(ncid, name, len, &dimid)))
+	return ret;
+    
+    /* Free resources. */
+    free(name);
+    
+    printf("%d create_file_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
 int open_file_handler(iosystem_desc_t *ios)
 {
     return PIO_NOERR;
@@ -545,10 +590,6 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     printf("%d pio_msg_handler called\n", my_rank);
     
-    /* Set request handles to MPI_REQUEST_NULL. */
-    for (int cmp = 0; cmp < component_count; cmp++)
-	req[cmp] = MPI_REQUEST_NULL;
-
     /* Have IO comm rank 0 (the ioroot) register to receive
      * (non-blocking) for a message from each of the comproots. */
     if (!io_rank)
@@ -557,10 +598,9 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	{
 	    my_iosys = &iosys[cmp];
 	    printf("%d about to call MPI_Irecv\n", my_rank);	    
-	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
-			       &req[cmp]);
+	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, MPI_ANY_TAG,
+			       my_iosys->union_comm, &req[cmp]);
 	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	    printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);	    
 	}
     }
 
@@ -574,7 +614,8 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 		   my_rank, req[0], MPI_REQUEST_NULL);	    
 	    mpierr = MPI_Waitany(component_count, req, &index, &status);
 	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	    printf("%d Waitany returned index = %d\n", my_rank, index);
+	    printf("%d Waitany returned index = %d req[%d] = %d\n", my_rank,
+		   index, index, req[index]);
 	}
 
 	/* Broadcast the index of the computational component that
@@ -608,6 +649,9 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    break;
 	case PIO_MSG_CLOSE_FILE:
 	    close_file_handler(my_iosys);
+	    break;
+	case PIO_MSG_DEF_DIM:
+	    def_dim_handler(my_iosys);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);
@@ -651,15 +695,15 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	 * component whose message we just handled. */
 	if (!io_rank && msg != -1)
 	{
-	    printf("%d about to call MPI_Irecv\n", my_rank);	    
-	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, 1, my_iosys->union_comm,
+	    my_iosys = &iosys[index];
+	    mpierr = MPI_Irecv(&msg, 1, MPI_INT, my_iosys->comproot, MPI_ANY_TAG, my_iosys->union_comm,
 			       &req[index]);
+	    printf("%d pio_msg_handler called MPI_Irecv req[%d] = %d\n", my_rank, index, req[index]);	    
 	    CheckMPIReturn(mpierr, __FILE__, __LINE__);
-	    printf("%d finished MPI_Irecv req[0] = %d\n", my_rank, req[0]);
 	}
 	
     }
-    
+
     return PIO_NOERR;
 }
 

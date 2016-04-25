@@ -436,7 +436,7 @@ int PIOc_sync (int ncid)
   msg = PIO_MSG_SYNC;
 
   if(ios->async_interface && ! ios->ioproc){
-    if(ios->compmaster) 
+    if(!ios->comp_rank) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
     printf("%d PIOc_sync comp task Bcast file->fh = %d\n", my_rank, file->fh);
