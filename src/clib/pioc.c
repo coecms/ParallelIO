@@ -473,6 +473,61 @@ int enddef_file_handler(iosystem_desc_t *ios)
 }
 
 /** This function is run on the IO tasks to define a netCDF
+ *  variable. */
+int def_var_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int len, namelen;
+    int iotype;
+    char *name;
+    int mode;
+    int mpierr;
+    int ret;
+    int varid;
+    nc_type xtype;
+    int ndims;
+    int *dimids;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d def_var_handler comproot = %d\n", my_rank, ios->comproot);
+
+    /* Get the parameters for this function that the he comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&namelen, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if (!(name = malloc(namelen + 1 * sizeof(char))))
+    	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, 0,
+    			    ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&xtype, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&ndims, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if (!(dimids = malloc(ndims * sizeof(int))))
+    	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast(dimids, ndims, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d def_var_handler got parameters namelen = %d "
+    	   "name = %s len = %d ncid = %d\n",
+    	   my_rank, namelen, name, len, ncid);
+
+    /* Call the create file function. */
+    if ((ret = PIOc_def_var(ncid, name, xtype, ndims, dimids, &varid)))
+	return ret;
+    
+    /* Free resources. */
+    free(name);
+    free(dimids);
+    
+    printf("%d create_file_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
+/** This function is run on the IO tasks to define a netCDF
  * dimension. */
 int def_dim_handler(iosystem_desc_t *ios)
 {
@@ -517,6 +572,83 @@ int def_dim_handler(iosystem_desc_t *ios)
     return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks. It reads or writes an array
+ *  of data to a netCDF variable. 
+ *
+ * @param ios pointer to the iosystem_desc_t data.
+ * @param msg the message sent my the comp root task. 
+ *
+ * @return PIO_NOERR for success, error code otherwise. */
+int vara_handler(iosystem_desc_t *ios, int msg)
+{
+    int ncid;
+    int len, namelen;
+    int iotype;
+    char *name;
+    int mode;
+    int mpierr;
+    int ret;
+    int varid;
+    nc_type xtype;
+    int ndims;
+    int *dimids;
+    void *data;
+    int size_in_bytes;
+    PIO_Offset *count, *start;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d def_var_handler comproot = %d\n", my_rank, ios->comproot);
+
+    if (msg == PIO_MSG_PUT_VARA)
+    {
+	/* Get the parameters for this function that the he comp master
+	 * task is broadcasting. */
+	if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	    return PIO_EIO;
+	if ((mpierr = MPI_Bcast(&varid, 1, MPI_INT, 0, ios->intercomm)))
+	    return PIO_EIO;
+	if ((ret = PIOc_inq_varndims(ncid, varid, &ndims)))
+	    return ret;
+	if (!(start = malloc(ndims * sizeof(int))))
+	    return PIO_ENOMEM;
+	if (!(count = malloc(ndims * sizeof(int))))
+	    return PIO_ENOMEM;
+	if ((mpierr = MPI_Bcast(start, ndims, MPI_INT, 0, ios->intercomm)))
+	    return PIO_EIO;
+	if ((mpierr = MPI_Bcast(count, ndims, MPI_INT, 0, ios->intercomm)))
+	    return PIO_EIO;
+	int size = 1;
+	for (int d = 0; d < ndims; d++)
+	    size *= count[d];
+	size_in_bytes = size * sizeof(int);
+	if (!(data = malloc(size_in_bytes)))
+	    return PIO_ENOMEM;	
+	if ((mpierr = MPI_Bcast(data, size_in_bytes, MPI_INT, 0,
+				ios->intercomm)))
+	    return PIO_EIO;
+	printf("%d def_var_handler got parameters namelen = %d "
+	       "name = %s len = %d ncid = %d\n",
+	       my_rank, namelen, name, len, ncid);
+
+	/* Call the create file function. */
+	if ((ret = PIOc_put_vara_int(ncid, varid, start, count, data)))
+	    return ret;
+    
+	/* Free resources. */
+	free(start);
+	free(count);
+	free(data);
+    }
+    else
+    {
+	
+    }
+
+    printf("%d vara_handler succeeded!\n", my_rank);
+    return PIO_NOERR;
+}
+
 int open_file_handler(iosystem_desc_t *ios)
 {
     return PIO_NOERR;
@@ -543,11 +675,6 @@ int seterrorhandling_handler(iosystem_desc_t *ios)
 }
 
 int var_handler(iosystem_desc_t *ios, int msg)
-{
-    return PIO_NOERR;
-}
-
-int vara_handler(iosystem_desc_t *ios, int msg)
 {
     return PIO_NOERR;
 }
@@ -652,6 +779,9 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    break;
 	case PIO_MSG_DEF_DIM:
 	    def_dim_handler(my_iosys);
+	    break;
+	case PIO_MSG_DEF_VAR:
+	    def_var_handler(my_iosys);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);
@@ -889,9 +1019,6 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
     if (!(iosys = (iosystem_desc_t *) calloc(1, sizeof(iosystem_desc_t) * component_count)))
 	ierr = PIO_ENOMEM;
 
-    /* Copy the computation communicator into union_comm. */
-    iosys->union_comm = MPI_COMM_NULL;
-
     if (!ierr)
 	for (int cmp = 0; cmp < component_count; cmp++)
 	{
@@ -1070,6 +1197,12 @@ int PIOc_Init_Intercomm(int component_count, MPI_Comm peer_comm,
 		my_iosys->ioproc = false;
 		my_iosys->iomaster = false;
 	    }
+
+	    /* my_comm points to the union communicator for async, and
+	     * the comp_comm for non-async. It should not be freed
+	     * since it is not a proper copy of the commuicator, just
+	     * a copy of the reference to it. */
+	    my_iosys->my_comm = my_iosys->union_comm;
 
 	    /* Find rank in union communicator. */
 	    mpierr = MPI_Comm_rank(my_iosys->union_comm, &my_iosys->union_rank);

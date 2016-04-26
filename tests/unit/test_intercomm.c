@@ -1,6 +1,6 @@
 /**
- * @file 
- * Tests for PIOc_Intercomm
+ * @file Tests for PIOc_Intercomm. This tests the Init_Intercomm()
+ * function, and basic asynch I/O capability.
  *
  */
 #include <pio.h>
@@ -91,78 +91,14 @@ main(int argc, char **argv)
      * will do IO from all processors. */
     int niotasks;
 
-    /** Stride in the mpi rank between io tasks. Always 1 in this
-     * test. */
-    int ioproc_stride = 1;
-
-    /** Number of the aggregator? Always 0 in this test. */
-    int numAggregator = 0;
-
-    /** Zero based rank of first processor to be used for I/O. */
-    int ioproc_start = 0;
-
-    /** Array index per processing unit. */
-    PIO_Offset elements_per_pe;
-
     /** The ID for the parallel I/O system. */
     int iosysid;
 
     /** The ncid of the netCDF file. */
-    int ncid = 0;
+    int ncid;
 
     /** The ID of the netCDF varable. */
     int varid;
-
-    /** Storage of netCDF-4 files (contiguous vs. chunked). */
-    int storage;
-
-    /** Chunksizes set in the file. */
-    size_t my_chunksize[NDIM];
-    
-    /** The shuffle filter setting in the netCDF-4 test file. */
-    int shuffle;
-    
-    /** Non-zero if deflate set for the variable in the netCDF-4 test file. */
-    int deflate;
-
-    /** The deflate level set for the variable in the netCDF-4 test file. */
-    int deflate_level;
-
-    /** Non-zero if fletcher32 filter is used for variable. */
-    int fletcher32;
-
-    /** Endianness of variable. */
-    int endianness;
-
-    /* Size of the file chunk cache. */
-    size_t chunk_cache_size;
-
-    /* Number of elements in file cache. */
-    size_t nelems;
-
-    /* File cache preemption. */
-    float preemption;
-
-    /* Size of the var chunk cache. */
-    size_t var_cache_size;
-
-    /* Number of elements in var cache. */
-    size_t var_cache_nelems;
-
-    /* Var cache preemption. */    
-    float var_cache_preemption;
-    
-    /** The I/O description ID. */
-    int ioid;
-
-    /** A buffer for sample data. */
-    float *buffer;
-
-    /** A buffer for reading data back from the file. */
-    int *read_buffer;
-
-    /** The decomposition mapping. */
-    PIO_Offset *compdof;
 
     /** Return code. */
     int ret;
@@ -189,7 +125,7 @@ main(int argc, char **argv)
     /* Check that a valid number of processors was specified. */
     if (!(ntasks == 1 || ntasks == 2 || ntasks == 4 ||
 	  ntasks == 8 || ntasks == 16))
-	fprintf(stderr, "test_intercomm Number of processors must be 1, 2, 4, 8, or 16!\n");
+	fprintf(stderr, "test_intercomm Number of processors must be exactly 4!\n");
     if (verbose)
 	printf("%d: test_intercomm ParallelIO Library test_intercomm running on %d processors.\n",
 	       my_rank, ntasks);
@@ -281,10 +217,10 @@ main(int argc, char **argv)
 	    	printf("%d defining dimension %s\n", my_rank, DIM_NAME);
 	    if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid)))
 	    	ERR(ret);
-	    /* if (verbose) */
-	    /* 	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME); */
-	    /* if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid))) */
-	    /* 	ERR(ret); */
+	    if (verbose)
+	    	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME);
+	    if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid)))
+	    	ERR(ret);
 
 	    /* Close the file. */
 	    if (verbose)
@@ -292,12 +228,12 @@ main(int argc, char **argv)
 	    if ((ret = PIOc_enddef(ncid)))
 	    	ERR(ret);
 
-	    /* /\* Write some data. *\/ */
-	    /* for (int i = 0; i < LOCAL_DIM_LEN; i++) */
-	    /* 	data[i] = my_rank; */
-	    /* if (verbose) */
-	    /* 	printf("rank: %d writing data\n", my_rank); */
-	    /* start[0] = !my_rank ? 0 : 2; */
+	    /* Write some data. */
+	    for (int i = 0; i < LOCAL_DIM_LEN; i++)
+	    	data[i] = my_rank;
+	    if (verbose)
+	    	printf("rank: %d writing data\n", my_rank);
+	    start[0] = !my_rank ? 0 : 2;
 	    /* if ((ret = PIOc_put_vara_int(ncid, varid, start, count, data))) */
 	    /* 	ERR(ret); */
 

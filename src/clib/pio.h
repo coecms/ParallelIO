@@ -538,7 +538,6 @@ int PIOc_set_blocksize(const int newblocksize);
   int PIOc_put_var_short (int ncid, int varid, const short *op) ;
   int PIOc_get_vara_text (int ncid, int varid, const PIO_Offset start[], const PIO_Offset count[], char *buf) ;
   int PIOc_put_vara_int (int ncid, int varid, const PIO_Offset start[], const PIO_Offset count[], const int *op)  ;
-  int PIOc_put_vara_int (int ncid, int varid, const PIO_Offset start[], const PIO_Offset count[], const int *op)  ;
 
   int PIOc_put_var1_ushort (int ncid, int varid, const PIO_Offset index[], const unsigned short *op); 
   int PIOc_put_vara_text (int ncid, int varid, const PIO_Offset start[], const PIO_Offset count[], const char *op);  
