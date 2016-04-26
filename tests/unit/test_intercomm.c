@@ -242,6 +242,19 @@ main(int argc, char **argv)
 	    	printf("%d test_intercomm closing file ncid = %d\n", my_rank, ncid);
 	    if ((ret = PIOc_closefile(ncid)))
 	    	ERR(ret);
+
+	    /* Re-open the file to check it. */
+	    if (verbose)
+	    	printf("%d test_intercomm opening file %s\n", my_rank, filename[fmt]);
+	    if ((ret = PIOc_openfile(iosysid, &ncid, &format[fmt], filename[fmt],
+				     NC_NOWRITE)))
+	    	ERR(ret);
+	    
+	    /* Close the file. */
+	    if (verbose)
+	    	printf("%d test_intercomm closing file (again) ncid = %d\n", my_rank, ncid);
+	    if ((ret = PIOc_closefile(ncid)))
+	    	ERR(ret);
 	} /* next netcdf format flavor */
     }
 

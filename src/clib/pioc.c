@@ -649,8 +649,51 @@ int vara_handler(iosystem_desc_t *ios, int msg)
     return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks to open a netCDF file. 
+ *
+ * @param ios pointer to the iosystem_desc_t data.
+ *
+ * @return PIO_NOERR for success, error code otherwise. */
 int open_file_handler(iosystem_desc_t *ios)
 {
+    int ncid;
+    int len;
+    int iotype;
+    char *filename;
+    int mode;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d open_file_handler comproot = %d\n", my_rank, ios->comproot);
+
+    /* Get the parameters for this function that the he comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&len, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d open_file_handler got parameter len = %d\n", my_rank, len);
+    if (!(filename = malloc(len + 1 * sizeof(char))))
+    	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)filename, len + 1, MPI_CHAR, 0,
+    			    ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&iotype, 1, MPI_INT, 0, ios->intercomm)))
+    	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&mode, 1, MPI_INT, 0, ios->intercomm)))
+    	return PIO_EIO;
+    printf("%d open_file_handler got parameters len = %d "
+    	   "filename = %s iotype = %d mode = %d\n",
+    	   my_rank, len, filename, iotype, mode);
+
+    /* Call the open file function. */
+    if ((ret = PIOc_openfile(ios->iosysid, &ncid, &iotype, filename, mode)))
+	return ret;
+    
+    /* Free resources. */
+    free(filename);
+    
+    printf("%d open_file_handler succeeded!\n", my_rank);
     return PIO_NOERR;
 }
 

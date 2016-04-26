@@ -61,9 +61,10 @@ int PIOc_openfile(const int iosysid, int *ncidp, int *iotype,
     if(ios->comp_rank==0) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     len = strlen(filename);
-    mpierr = MPI_Bcast((void *) filename,len, MPI_CHAR, ios->compmaster, ios->intercomm);
-    mpierr = MPI_Bcast(&(file->iotype), 1, MPI_INT,  ios->compmaster, ios->intercomm);
-    mpierr = MPI_Bcast(&(file->mode), 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)filename, len + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&file->iotype, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&file->mode, 1, MPI_INT,  ios->compmaster, ios->intercomm);
   }
   
   if(ios->ioproc){
@@ -130,10 +131,11 @@ int PIOc_openfile(const int iosysid, int *ncidp, int *iotype,
 
   ierr = check_netcdf(file, ierr, __FILE__,__LINE__);
 
-  if(ierr==PIO_NOERR){
-    mpierr = MPI_Bcast(&(file->mode), 1, MPI_INT,  ios->ioroot, ios->union_comm);
-    pio_add_to_file_list(file);
+  if (!ierr) {
+    mpierr = MPI_Bcast(&file->mode, 1, MPI_INT, ios->ioroot, ios->union_comm);
+    mpierr = MPI_Bcast(&file->fh, 1, MPI_INT, ios->ioroot, ios->union_comm);
     *ncidp = file->fh;
+    pio_add_to_file_list(file);
   }
   if(ios->io_rank==0){
     printf("Open file %s %d\n",filename,file->fh); //,file->fh,file->id,ios->io_rank,ierr);
@@ -204,17 +206,10 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
     if(ios->comp_rank==0) 
       mpierr = MPI_Send(&msg, 1, MPI_INT, ios->ioroot, 1, ios->union_comm);
     len = strlen(filename);
-    printf("%d bcasting len = %d filename = %s iotype = %d mode = %d ios->compmaster = %d\n",
-	   my_rank, len, filename, file->iotype, file->mode, ios->compmaster);
-    if (!ios->compmaster)
-	ios->compmaster = MPI_PROC_NULL;
     mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
-    printf("%d bcasting len = %d filename = %s iotype = %d mode = %d\n",
-	   my_rank, len, filename, file->iotype, file->mode);
-    mpierr = MPI_Bcast((void *) filename, len + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
-    mpierr = MPI_Bcast(&(file->iotype), 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)filename, len + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&file->iotype, 1, MPI_INT,  ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&file->mode, 1, MPI_INT,  ios->compmaster, ios->intercomm);
-    printf("%d bcasting complete\n", my_rank);
   }
   
 
@@ -261,9 +256,9 @@ int PIOc_createfile(const int iosysid, int *ncidp,  int *iotype,
   ierr = check_netcdf(file, ierr, __FILE__,__LINE__);
 
   if(ierr == PIO_NOERR){
-    mpierr = MPI_Bcast(&(file->mode), 1, MPI_INT,  ios->ioroot, ios->union_comm);
+    mpierr = MPI_Bcast(&file->mode, 1, MPI_INT,  ios->ioroot, ios->union_comm);
     file->mode = file->mode | PIO_WRITE;  // This flag is implied by netcdf create functions but we need to know if its set
-    mpierr = MPI_Bcast(&(file->fh), 1, MPI_INT,  ios->ioroot, ios->union_comm);
+    mpierr = MPI_Bcast(&file->fh, 1, MPI_INT,  ios->ioroot, ios->union_comm);
     *ncidp = file->fh;
     pio_add_to_file_list(file);
   }
