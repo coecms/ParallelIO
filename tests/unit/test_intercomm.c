@@ -29,6 +29,7 @@
 
 /** Error code for when things go wrong. */
 #define ERR_AWFUL 1111
+#define ERR_WRONG 2222
 
 /** Handle MPI errors. This should only be used with MPI library
  * function calls. */
@@ -249,6 +250,22 @@ main(int argc, char **argv)
 	    if ((ret = PIOc_openfile(iosysid, &ncid, &format[fmt], filename[fmt],
 				     NC_NOWRITE)))
 	    	ERR(ret);
+
+	    /* Find the number of dimensions, variables, and global attributes. */
+	    /* int ndims, nvars, ngatts, unlimdimid; */
+	    /* if ((ret = PIOc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid))) */
+	    /* 	ERR(ret); */
+	    /* if (ndims != 1 || nvars != 1 || ngatts != 0 || unlimdimid != -1) */
+	    /* 	ERR(ERR_WRONG); */
+	    /* int ndims2, nvars2, ngatts2, unlimdimid2; */
+	    /* if ((ret = PIOc_inq_ndims(ncid, &ndims2))) */
+	    /* 	ERR(ret); */
+	    /* if (ndims2 != 1) */
+	    /* 	ERR(ERR_WRONG); */
+	    /* if ((ret = PIOc_inq_nvars(ncid, &nvars2))) */
+	    /* 	ERR(ret); */
+	    /* if (nvars2 != 1) */
+	    /* 	ERR(ERR_WRONG); */
 	    
 	    /* Close the file. */
 	    if (verbose)

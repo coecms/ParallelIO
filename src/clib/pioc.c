@@ -414,6 +414,56 @@ int close_file_handler(iosystem_desc_t *ios)
     return PIO_NOERR;
 }
 
+/** This function is run on the IO tasks to inq a netCDF file. It is
+ * only ever run on the IO tasks. 
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @param msg the message sent my the comp root task. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int inq_handler(iosystem_desc_t *ios, int msg)
+{
+    int ncid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d inq_file_handler\n", my_rank);
+
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+
+    /* Call the inq file function. */
+    int ndims, nvars, ngatts, unlimdimid;
+    int *ndimsp = NULL, *nvarsp = NULL, *ngattsp = NULL, *unlimdimidp = NULL;
+    switch (msg)
+    {
+    case PIO_MSG_INQ:
+	ndimsp = &ndims;
+	nvarsp = &nvars;
+	ngattsp = &ngatts;
+	unlimdimidp = &unlimdimid;
+	break;
+    case PIO_MSG_INQ_NVARS:
+	nvarsp = &nvars;
+	break;
+    case PIO_MSG_INQ_NDIMS:
+	ndimsp = &ndims;
+	break;
+    default:
+	return PIO_EINVAL;
+    }
+
+    /* Call the inq function to get the values. */
+    if ((ret = PIOc_inq(ncid, ndimsp, nvarsp, ngattsp, unlimdimidp)))
+	return ret;
+    
+    return PIO_NOERR;
+}
+
 /** This function is run on the IO tasks to sync a netCDF file. 
  *
  * @param ios pointer to the iosystem_desc_t. 
@@ -825,6 +875,11 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    break;
 	case PIO_MSG_DEF_VAR:
 	    def_var_handler(my_iosys);
+	    break;
+	case PIO_MSG_INQ:
+	case PIO_MSG_INQ_NVARS:
+	case PIO_MSG_INQ_NDIMS:
+	    inq_handler(my_iosys, msg);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);

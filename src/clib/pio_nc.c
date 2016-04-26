@@ -13,6 +13,48 @@
 #include <pio.h>
 #include <pio_internal.h>
 
+/** Internal function to call nc_inq. Call this function only in I/O
+ * tasks. */
+int
+pio_io_inq_nvars(int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdimidp)
+{
+    file_desc_t *file;
+    char *errstr = NULL;
+    int ierr = PIO_NOERR;
+
+    if (!(file = pio_get_file_from_id(ncid)))
+	return PIO_EBADID;
+    
+    switch (file->iotype)
+    {
+#ifdef _NETCDF
+#ifdef _NETCDF4
+    case PIO_IOTYPE_NETCDF4P:
+	ierr = nc_inq(ncid, ndimsp, nvarsp, ngattsp, unlimdimidp);
+	break;
+    case PIO_IOTYPE_NETCDF4C:
+#endif
+    case PIO_IOTYPE_NETCDF:
+	if (!file->iosystem->io_rank)
+	    ierr = nc_inq(ncid, ndimsp, nvarsp, ngattsp, unlimdimidp);
+	break;
+#endif
+#ifdef _PNETCDF
+    case PIO_IOTYPE_PNETCDF:
+	ierr = ncmpi_inq(ncid, ndimsp, nvarsp, ngattsp, unlimdimidp);
+	break;
+#endif
+    default:
+	ierr = iotype_error(file->iotype,__FILE__,__LINE__);
+    }
+
+    if(ierr != PIO_NOERR)
+    {
+	errstr = (char *) malloc((strlen(__FILE__) + 20)* sizeof(char));
+	sprintf(errstr,"in file %s",__FILE__);
+    }
+}
+
 /** 
  * @ingroup PIOc_inq
  * The PIO-C interface for the NetCDF function nc_inq.
@@ -24,9 +66,11 @@
  *
  * @param ncid the ncid of the open file, obtained from
  * PIOc_openfile() or PIOc_createfile().
- * @return PIO_NOERR for success, error code otherwise.  See PIOc_Set_File_Error_Handling
+ * @return PIO_NOERR for success, error code otherwise.  See
+ * PIOc_Set_File_Error_Handling
  */
-int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdimidp) 
+int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp,
+	      int *unlimdimidp) 
 {
   int ierr;
   int msg;
@@ -50,48 +94,21 @@ int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdimidp
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
-
   if(ios->ioproc){
-    switch(file->iotype){
-#ifdef _NETCDF
-#ifdef _NETCDF4
-    case PIO_IOTYPE_NETCDF4P:
-      ierr = nc_inq(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);;
-      break;
-    case PIO_IOTYPE_NETCDF4C:
-#endif
-    case PIO_IOTYPE_NETCDF:
-      if(ios->io_rank==0){
-	ierr = nc_inq(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);;
-      }
-      break;
-#endif
-#ifdef _PNETCDF
-    case PIO_IOTYPE_PNETCDF:
-      ierr = ncmpi_inq(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);;
-      break;
-#endif
-    default:
-      ierr = iotype_error(file->iotype,__FILE__,__LINE__);
-    }
+      ierr = pio_io_inq_nvars(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);
+      ierr = check_netcdf(file, ierr, errstr,__LINE__);
   }
-
-   if(ierr != PIO_NOERR){
-    errstr = (char *) malloc((strlen(__FILE__) + 20)* sizeof(char));
-    sprintf(errstr,"in file %s",__FILE__);
-  }
-  ierr = check_netcdf(file, ierr, errstr,__LINE__);
-      if(ndimsp != NULL)
-        mpierr = MPI_Bcast(ndimsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
-       if(nvarsp != NULL)
-        mpierr = MPI_Bcast(nvarsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
-       if(ngattsp != NULL)
-        mpierr = MPI_Bcast(ngattsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
-       if(unlimdimidp != NULL)
-        mpierr = MPI_Bcast(unlimdimidp, 1, MPI_INT, ios->ioroot, ios->my_comm);
-   if(errstr != NULL) free(errstr);
+  if(ndimsp != NULL)
+      mpierr = MPI_Bcast(ndimsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if(nvarsp != NULL)
+      mpierr = MPI_Bcast(nvarsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if(ngattsp != NULL)
+      mpierr = MPI_Bcast(ngattsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if(unlimdimidp != NULL)
+      mpierr = MPI_Bcast(unlimdimidp, 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if(errstr != NULL) free(errstr);
   return ierr;
-}
+  }
 
 /** 
  * @ingroup PIOc_inq_dimname
@@ -518,7 +535,7 @@ int PIOc_def_var (int ncid, const char *name, nc_type xtype, int ndims,
     mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&xtype, 1, MPI_INT, ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&ndims, 1, MPI_INT, ios->compmaster, ios->intercomm);
-    mpierr = MPI_Bcast(dimidsp, ndims, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)dimidsp, ndims, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
   if(ios->ioproc){
@@ -2755,6 +2772,7 @@ int PIOc_inq_ndims (int ncid, int *ndimsp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
+  if (ndimsp)
     mpierr = MPI_Bcast(ndimsp , 1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
@@ -2901,6 +2919,7 @@ int PIOc_inq_nvars (int ncid, int *nvarsp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
+  if (nvarsp)
     mpierr = MPI_Bcast(nvarsp,1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
@@ -3868,7 +3887,6 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
     mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
   }
-
 
   if(ios->ioproc){
     switch(file->iotype){
