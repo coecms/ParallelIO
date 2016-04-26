@@ -251,10 +251,10 @@ main(int argc, char **argv)
 				     NC_NOWRITE)))
 	    	ERR(ret);
 
-	    /* Find the number of dimensions, variables, and global attributes. */
-	    /* int ndims, nvars, ngatts, unlimdimid; */
-	    /* if ((ret = PIOc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid))) */
-	    /* 	ERR(ret); */
+	    Find the number of dimensions, variables, and global attributes.
+	    int ndims, nvars, ngatts, unlimdimid;
+	    if ((ret = PIOc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid)))
+	    	ERR(ret);
 	    /* if (ndims != 1 || nvars != 1 || ngatts != 0 || unlimdimid != -1) */
 	    /* 	ERR(ERR_WRONG); */
 	    /* int ndims2, nvars2, ngatts2, unlimdimid2; */
