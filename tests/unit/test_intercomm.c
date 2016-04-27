@@ -274,6 +274,31 @@ main(int argc, char **argv)
 	    	ERR(ret);
 	    if (unlimdimid != -1)
 	    	ERR(ERR_WRONG);
+
+	    /* Check out the dimension. */
+	    char dimname[NC_MAX_NAME + 1];
+	    PIO_Offset dimlen;
+	    if ((ret = PIOc_inq_dim(ncid, 0, dimname, &dimlen)))
+	    	ERR(ret);
+	    if (!strcmp(dimname, VAR_NAME) || dimlen != DIM_LEN)
+		ERR(ERR_WRONG);
+	    char dimname2[NC_MAX_NAME + 1];
+	    PIO_Offset dimlen2;
+	    if ((ret = PIOc_inq_dimname(ncid, 0, dimname2)))
+	    	ERR(ret);
+	    if (!strcmp(dimname2, VAR_NAME))
+		ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_dimlen(ncid, 0, &dimlen2)))
+	    	ERR(ret);
+	    if (dimlen2 != DIM_LEN)
+	    	ERR(ERR_WRONG);
+	    int dimid2;
+	    if ((ret = PIOc_inq_dimid(ncid, DIM_NAME, &dimid2)))
+	    	ERR(ret);
+	    if (dimid2 != 0)
+	    	ERR(ERR_WRONG);
+
+	    /* Check out the variable. */
 	    
 	    /* Close the file. */
 	    if (verbose)

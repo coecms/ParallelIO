@@ -470,6 +470,98 @@ int inq_handler(iosystem_desc_t *ios, int msg)
     return PIO_NOERR;
 }
 
+/** Do an inq_dim on a netCDF dimension. This function is only run on
+ * IO tasks.
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @param msg the message sent my the comp root task. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int inq_dim_handler(iosystem_desc_t *ios, int msg)
+{
+    int ncid;
+    int dimid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d inq_handler msg = %d\n", my_rank, msg);
+
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&dimid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+
+    /* Call the inq_dim function. */
+    char *dimnamep = NULL;
+    PIO_Offset *dimlenp = NULL;
+    char dimname[NC_MAX_NAME + 1];
+    PIO_Offset dimlen;
+    switch (msg)
+    {
+    case PIO_MSG_INQ_DIM:
+	dimnamep = dimname;
+	dimlenp = &dimlen;
+	break;
+    case PIO_MSG_INQ_DIMLEN:
+	dimlenp = &dimlen;
+	break;
+    case PIO_MSG_INQ_DIMNAME:
+	dimnamep = dimname;
+	break;
+    default:
+	return PIO_EINVAL;
+    }
+
+    /* Call the inq function to get the values. */
+    if ((ret = PIOc_inq_dim(ncid, dimid, dimnamep, dimlenp)))
+	return ret;
+    
+    return PIO_NOERR;
+}
+
+/** Do an inq_dimid on a netCDF dimension name. This function is only
+ * run on IO tasks.
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int inq_dimid_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int dimid;
+    int mpierr;
+    int ret;
+    int namelen;
+    char *name;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&namelen, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if (!(name = malloc((namelen + 1) * sizeof(char))))
+	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, 0, ios->intercomm)))
+	return PIO_EIO;
+
+    /* Call the inq_dimid function. */
+    if ((ret = PIOc_inq_dimid(ncid, name, &dimid)))
+	return ret;
+
+    /* Free resources. */
+    free(name);
+    
+    return PIO_NOERR;
+}
+
 /** This function is run on the IO tasks to sync a netCDF file. 
  *
  * @param ios pointer to the iosystem_desc_t. 
@@ -888,6 +980,14 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	case PIO_MSG_INQ_NATTS:
 	case PIO_MSG_INQ_UNLIMDIM:
 	    inq_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_INQ_DIM:
+	case PIO_MSG_INQ_DIMLEN:
+	case PIO_MSG_INQ_DIMNAME:
+	    inq_dim_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_INQ_DIMID:
+	    inq_dimid_handler(my_iosys);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);

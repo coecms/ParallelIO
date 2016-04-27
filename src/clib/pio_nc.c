@@ -175,6 +175,7 @@ int PIOc_inq_dimname (int ncid, int dimid, char *name)
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&dimid, 1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -208,7 +209,8 @@ int PIOc_inq_dimname (int ncid, int dimid, char *name)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    if(name != NULL){
+    if (name)
+    {
       int slen;
       if(ios->iomaster)
         slen = (int) strlen(name) + 1;
@@ -718,7 +720,8 @@ int PIOc_inq_dim (int ncid, int dimid, char *name, PIO_Offset *lenp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&file->fh, 1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&dimid, 1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -739,7 +742,7 @@ int PIOc_inq_dim (int ncid, int dimid, char *name, PIO_Offset *lenp)
 #endif
 #ifdef _PNETCDF
     case PIO_IOTYPE_PNETCDF:
-      ierr = ncmpi_inq_dim(file->fh, dimid, name, lenp);;
+	ierr = ncmpi_inq_dim(file->fh, dimid, name, lenp);;
       break;
 #endif
     default:
@@ -752,14 +755,16 @@ int PIOc_inq_dim (int ncid, int dimid, char *name, PIO_Offset *lenp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    if(name != NULL){ 
+    if(name)
+    { 
       int slen;
       if(ios->iomaster)
         slen = (int) strlen(name) + 1;
       mpierr = MPI_Bcast(&slen, 1, MPI_INT, ios->ioroot, ios->my_comm);
       mpierr = MPI_Bcast(name, slen, MPI_CHAR, ios->ioroot, ios->my_comm);
     }
-      if(lenp != NULL) mpierr = MPI_Bcast(lenp , 1, MPI_OFFSET, ios->ioroot, ios->my_comm);
+    if(lenp != NULL)
+	mpierr = MPI_Bcast(lenp , 1, MPI_OFFSET, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }
@@ -2011,7 +2016,10 @@ int PIOc_inq_dimid (int ncid, const char *name, int *idp)
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&file->fh, 1, MPI_INT, ios->compmaster, ios->intercomm);
+    int namelen = strlen(name);
+    mpierr = MPI_Bcast(&namelen, 1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(name, namelen + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
   }
 
 
@@ -2045,7 +2053,8 @@ int PIOc_inq_dimid (int ncid, const char *name, int *idp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(idp , 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if (idp)
+    mpierr = MPI_Bcast(idp, 1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }
@@ -3516,6 +3525,7 @@ int PIOc_inq_dimlen (int ncid, int dimid, PIO_Offset *lenp)
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&dimid, 1, MPI_INT, ios->compmaster, ios->intercomm);    
   }
 
 
@@ -3549,7 +3559,8 @@ int PIOc_inq_dimlen (int ncid, int dimid, PIO_Offset *lenp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(lenp , 1, MPI_OFFSET, ios->ioroot, ios->my_comm);
+  if (lenp)
+      mpierr = MPI_Bcast(lenp, 1, MPI_OFFSET, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }
