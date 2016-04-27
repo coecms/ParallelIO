@@ -280,13 +280,14 @@ main(int argc, char **argv)
 	    PIO_Offset dimlen;
 	    if ((ret = PIOc_inq_dim(ncid, 0, dimname, &dimlen)))
 	    	ERR(ret);
-	    if (!strcmp(dimname, VAR_NAME) || dimlen != DIM_LEN)
+	    printf("%d dim name is %s VAR_NAME is %s\n", my_rank, dimname, VAR_NAME);
+	    if (strcmp(dimname, DIM_NAME) || dimlen != DIM_LEN)
 		ERR(ERR_WRONG);
 	    char dimname2[NC_MAX_NAME + 1];
 	    PIO_Offset dimlen2;
 	    if ((ret = PIOc_inq_dimname(ncid, 0, dimname2)))
 	    	ERR(ret);
-	    if (!strcmp(dimname2, VAR_NAME))
+	    if (strcmp(dimname2, DIM_NAME))
 		ERR(ERR_WRONG);
 	    if ((ret = PIOc_inq_dimlen(ncid, 0, &dimlen2)))
 	    	ERR(ret);
@@ -299,6 +300,42 @@ main(int argc, char **argv)
 	    	ERR(ERR_WRONG);
 
 	    /* Check out the variable. */
+	    char varname[NC_MAX_NAME + 1];
+	    nc_type vartype;
+	    int varndims, vardimids, varnatts;
+	    if ((ret = PIOc_inq_var(ncid, 0, varname, &vartype, &varndims, &vardimids, &varnatts)))
+	    	ERR(ret);
+	    if (strcmp(varname, VAR_NAME) || vartype != NC_INT || varndims != NDIM ||
+		vardimids != 0 || varnatts != 0)
+	    	ERR(ERR_WRONG);
+	    char varname2[NC_MAX_NAME + 1];
+	    nc_type vartype2;
+	    int varndims2, vardimids2, varnatts2;
+	    if ((ret = PIOc_inq_varname(ncid, 0, varname2)))
+	    	ERR(ret);
+	    if (strcmp(varname2, VAR_NAME))
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_vartype(ncid, 0, &vartype2)))
+	    	ERR(ret);
+	    if (vartype2 != NC_INT)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_varndims(ncid, 0, &varndims2)))
+	    	ERR(ret);
+	    if (varndims2 != NDIM)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_vardimid(ncid, 0, &vardimids2)))
+	    	ERR(ret);
+	    if (vardimids2 != 0)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_varnatts(ncid, 0, &varnatts2)))
+	    	ERR(ret);
+	    if (varnatts2 != 0)
+	    	ERR(ERR_WRONG);
+	    int varid2;
+	    if ((ret = PIOc_inq_varid(ncid, VAR_NAME, &varid2)))
+	    	ERR(ret);
+	    if (varid2 != 0)
+	    	ERR(ERR_WRONG);
 	    
 	    /* Close the file. */
 	    if (verbose)

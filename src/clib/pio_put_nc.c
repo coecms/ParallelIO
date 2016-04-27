@@ -1052,8 +1052,8 @@ int PIOc_put_vara_int(int ncid, int varid, const PIO_Offset start[], const PIO_O
     mpierr = MPI_Bcast(&varid, 1, MPI_INT,  ios->compmaster, ios->intercomm);
     if ((ret = PIOc_inq_varndims(ncid, varid, &ndims)))
 	return ret;
-    mpierr = MPI_Bcast(start, ndims, MPI_INT, ios->compmaster, ios->intercomm);
-    mpierr = MPI_Bcast(count, ndims, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)start, ndims, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast((void *)count, ndims, MPI_INT, ios->compmaster, ios->intercomm);
     for (int d = 0, size = 1; d < ndims; d++)
 	size *= count[d];
     mpierr = MPI_Bcast((void *)op, size, MPI_INT, ios->compmaster, ios->intercomm);

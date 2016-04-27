@@ -538,9 +538,6 @@ int inq_dimid_handler(iosystem_desc_t *ios)
     int namelen;
     char *name;
     
-    int my_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
-
     /* Get the parameters for this function that the the comp master
      * task is broadcasting. */
     if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
@@ -554,6 +551,107 @@ int inq_dimid_handler(iosystem_desc_t *ios)
 
     /* Call the inq_dimid function. */
     if ((ret = PIOc_inq_dimid(ncid, name, &dimid)))
+	return ret;
+
+    /* Free resources. */
+    free(name);
+    
+    return PIO_NOERR;
+}
+
+/** Do an inq_var on a netCDF variable. This function is only run on
+ * IO tasks.
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @param msg the message sent my the comp root task. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int inq_var_handler(iosystem_desc_t *ios, int msg)
+{
+    int ncid;
+    int varid;
+    int mpierr;
+    int ret;
+    
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&varid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    printf("%d inv_var_handler ncid = %d varid = %d\n", my_rank, ncid, varid);
+
+    /* Call the inq_var function. */
+    char name[NC_MAX_NAME + 1], *namep;
+    nc_type xtype, *xtypep = NULL;
+    int *ndimsp = NULL, *dimidsp = NULL, *nattsp = NULL;    
+    int ndims, dimids[NC_MAX_DIMS], natts;    
+    switch (msg)
+    {
+    case PIO_MSG_INQ_VAR:
+	namep = name;
+	xtypep = &xtype;
+	ndimsp = &ndims;
+	dimidsp = dimids;
+	nattsp = &natts;
+	break;
+    case PIO_MSG_INQ_VARNATTS:
+	nattsp = &natts;
+	break;
+    case PIO_MSG_INQ_VARNAME:
+	namep = name;
+	break;
+    case PIO_MSG_INQ_VARNDIMS:
+	ndimsp = &ndims;
+	break;
+    case PIO_MSG_INQ_VARDIMID:
+	dimidsp = dimids;
+	break;
+    case PIO_MSG_INQ_VARTYPE:
+	xtypep = &xtype;
+	break;
+    default:
+	return PIO_EINVAL;
+    }
+
+    /* Call the inq function to get the values. */
+    if ((ret = PIOc_inq_var(ncid, varid, namep, xtypep, ndimsp, dimidsp, nattsp)))
+	return ret;
+    
+    return PIO_NOERR;
+}
+
+/** Do an inq_varid on a netCDF variable name. This function is only
+ * run on IO tasks.
+ *
+ * @param ios pointer to the iosystem_desc_t. 
+ * @return PIO_NOERR for success, error code otherwise. 
+*/
+int inq_varid_handler(iosystem_desc_t *ios)
+{
+    int ncid;
+    int varid;
+    int mpierr;
+    int ret;
+    int namelen;
+    char *name;
+    
+    /* Get the parameters for this function that the the comp master
+     * task is broadcasting. */
+    if ((mpierr = MPI_Bcast(&ncid, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if ((mpierr = MPI_Bcast(&namelen, 1, MPI_INT, 0, ios->intercomm)))
+	return PIO_EIO;
+    if (!(name = malloc((namelen + 1) * sizeof(char))))
+	return PIO_ENOMEM;
+    if ((mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, 0, ios->intercomm)))
+	return PIO_EIO;
+
+    /* Call the inq_dimid function. */
+    if ((ret = PIOc_inq_varid(ncid, name, &varid)))
 	return ret;
 
     /* Free resources. */
@@ -988,6 +1086,17 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	    break;
 	case PIO_MSG_INQ_DIMID:
 	    inq_dimid_handler(my_iosys);
+	    break;
+	case PIO_MSG_INQ_VAR:
+	case PIO_MSG_INQ_VARNATTS:
+	case PIO_MSG_INQ_VARNAME:
+	case PIO_MSG_INQ_VARNDIMS:
+	case PIO_MSG_INQ_VARDIMID:
+	case PIO_MSG_INQ_VARTYPE:
+	    inq_var_handler(my_iosys, msg);
+	    break;
+	case PIO_MSG_INQ_VARID:
+	    inq_varid_handler(my_iosys);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:
 	    initdecomp_dof_handler(my_iosys);
