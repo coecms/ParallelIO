@@ -429,7 +429,7 @@ int inq_handler(iosystem_desc_t *ios, int msg)
     
     int my_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
-    printf("%d inq_file_handler\n", my_rank);
+    printf("%d inq_handler msg = %d\n", my_rank, msg);
 
     /* Get the parameters for this function that the the comp master
      * task is broadcasting. */
@@ -452,6 +452,12 @@ int inq_handler(iosystem_desc_t *ios, int msg)
 	break;
     case PIO_MSG_INQ_NDIMS:
 	ndimsp = &ndims;
+	break;
+    case PIO_MSG_INQ_NATTS:
+	ngattsp = &ngatts;
+	break;
+    case PIO_MSG_INQ_UNLIMDIM:
+	unlimdimidp = &unlimdimid;
 	break;
     default:
 	return PIO_EINVAL;
@@ -879,6 +885,8 @@ int pio_msg_handler(int io_rank, int component_count, iosystem_desc_t *iosys)
 	case PIO_MSG_INQ:
 	case PIO_MSG_INQ_NVARS:
 	case PIO_MSG_INQ_NDIMS:
+	case PIO_MSG_INQ_NATTS:
+	case PIO_MSG_INQ_UNLIMDIM:
 	    inq_handler(my_iosys, msg);
 	    break;
 	case PIO_MSG_INITDECOMP_DOF:

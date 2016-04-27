@@ -16,11 +16,16 @@
 /** Internal function to call nc_inq. Call this function only in I/O
  * tasks. */
 int
-pio_io_inq_nvars(int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdimidp)
+pio_io_inq(int ncid, int *ndimsp, int *nvarsp, int *ngattsp,
+		 int *unlimdimidp)
 {
     file_desc_t *file;
     char *errstr = NULL;
     int ierr = PIO_NOERR;
+
+    int my_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+    printf("%d pio_io_inq ncid = %d\n", my_rank, ncid);
 
     if (!(file = pio_get_file_from_id(ncid)))
 	return PIO_EBADID;
@@ -35,8 +40,23 @@ pio_io_inq_nvars(int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdim
     case PIO_IOTYPE_NETCDF4C:
 #endif
     case PIO_IOTYPE_NETCDF:
+	printf("%d pio_io_inq file->iosystem->io_rank = %d\n", my_rank, file->iosystem->io_rank);
 	if (!file->iosystem->io_rank)
+	{
+	    /* Should not be necessary to do this - nc_inq should
+	     * handle null pointers. This has been reported as a bug
+	     * to netCDF developers. */
+	    int tmp_ndims, tmp_var, tmp_gatts, tmp_unl;
+	    if (!ndimsp)
+		ndimsp = &tmp_ndims;
+	    if (!nvarsp)
+		nvarsp = &tmp_var;
+	    if (!ngattsp)
+		ngattsp = &tmp_gatts;
+	    if (!unlimdimidp)
+		unlimdimidp = &tmp_unl;
 	    ierr = nc_inq(ncid, ndimsp, nvarsp, ngattsp, unlimdimidp);
+	}
 	break;
 #endif
 #ifdef _PNETCDF
@@ -53,6 +73,8 @@ pio_io_inq_nvars(int ncid, int *ndimsp, int *nvarsp, int *ngattsp, int *unlimdim
 	errstr = (char *) malloc((strlen(__FILE__) + 20)* sizeof(char));
 	sprintf(errstr,"in file %s",__FILE__);
     }
+
+    return ierr;
 }
 
 /** 
@@ -79,6 +101,10 @@ int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp,
   file_desc_t *file;
   char *errstr;
 
+  int my_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    
+  printf("%d PIOc_inq ncid = %d\n", my_rank, ncid);
+  
   errstr = NULL;
   ierr = PIO_NOERR;
 
@@ -95,11 +121,15 @@ int PIOc_inq (int ncid, int *ndimsp, int *nvarsp, int *ngattsp,
   }
 
   if(ios->ioproc){
-      ierr = pio_io_inq_nvars(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);
+      ierr = pio_io_inq(file->fh, ndimsp, nvarsp, ngattsp, unlimdimidp);
+      printf("%d PIOc_inq pio_io_inq returned %d\n", my_rank, ierr);
       ierr = check_netcdf(file, ierr, errstr,__LINE__);
   }
   if(ndimsp != NULL)
+  {
+      printf("%d PIOc_inq Bcast ios->ioroot = %d *ndimsp = %d\n", my_rank, ios->ioroot, *ndimsp);
       mpierr = MPI_Bcast(ndimsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
+  }
   if(nvarsp != NULL)
       mpierr = MPI_Bcast(nvarsp, 1, MPI_INT, ios->ioroot, ios->my_comm);
   if(ngattsp != NULL)
@@ -1631,7 +1661,8 @@ int PIOc_inq_natts (int ncid, int *ngattsp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(ngattsp,1, MPI_INT, ios->ioroot, ios->my_comm);
+  if (ngattsp)
+      mpierr = MPI_Bcast(ngattsp,1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }
@@ -2621,7 +2652,8 @@ int PIOc_inq_unlimdim (int ncid, int *unlimdimidp)
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(unlimdimidp,1, MPI_INT, ios->ioroot, ios->my_comm);
+  if (unlimdimidp)
+      mpierr = MPI_Bcast(unlimdimidp,1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }

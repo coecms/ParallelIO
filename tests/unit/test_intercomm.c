@@ -251,21 +251,29 @@ main(int argc, char **argv)
 				     NC_NOWRITE)))
 	    	ERR(ret);
 
-	    Find the number of dimensions, variables, and global attributes.
+	    /* Find the number of dimensions, variables, and global attributes.*/
 	    int ndims, nvars, ngatts, unlimdimid;
 	    if ((ret = PIOc_inq(ncid, &ndims, &nvars, &ngatts, &unlimdimid)))
 	    	ERR(ret);
-	    /* if (ndims != 1 || nvars != 1 || ngatts != 0 || unlimdimid != -1) */
-	    /* 	ERR(ERR_WRONG); */
-	    /* int ndims2, nvars2, ngatts2, unlimdimid2; */
-	    /* if ((ret = PIOc_inq_ndims(ncid, &ndims2))) */
-	    /* 	ERR(ret); */
-	    /* if (ndims2 != 1) */
-	    /* 	ERR(ERR_WRONG); */
-	    /* if ((ret = PIOc_inq_nvars(ncid, &nvars2))) */
-	    /* 	ERR(ret); */
-	    /* if (nvars2 != 1) */
-	    /* 	ERR(ERR_WRONG); */
+	    if (ndims != 1 || nvars != 1 || ngatts != 0 || unlimdimid != -1)
+	    	ERR(ERR_WRONG);
+	    int ndims2, nvars2, ngatts2, unlimdimid2;
+	    if ((ret = PIOc_inq_ndims(ncid, &ndims2)))
+	    	ERR(ret);
+	    if (ndims2 != 1)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_nvars(ncid, &nvars2)))
+	    	ERR(ret);
+	    if (nvars2 != 1)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_natts(ncid, &ngatts2)))
+	    	ERR(ret);
+	    if (ngatts2 != 0)
+	    	ERR(ERR_WRONG);
+	    if ((ret = PIOc_inq_unlimdim(ncid, &unlimdimid2)))
+	    	ERR(ret);
+	    if (unlimdimid != -1)
+	    	ERR(ERR_WRONG);
 	    
 	    /* Close the file. */
 	    if (verbose)
@@ -301,9 +309,13 @@ main(int argc, char **argv)
 
 #ifdef TIMING
     /* Finalize the GPTL timing library. */
-    if ((ret = GPTLfinalize ()))
+    if ((ret = GPTLfinalize()))
 	return ret;
 #endif
 
+    if (verbose)
+	printf("%d test_intercomm SUCCESS!!\n", my_rank);
+
+    
     return 0;
 }
