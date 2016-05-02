@@ -16,6 +16,7 @@ set (PIO_C_SRCS topology.c
                 pio_rearrange.c
                 pio_darray.c
 		pio_nc2.c
+		pio_msg.c
                 bget.c)
 
 set (PIO_GENNC_SRCS 
