@@ -23,9 +23,9 @@ set (PIO_GENNC_SRCS
   ${CMAKE_CURRENT_BINARY_DIR}/pio_get_nc.c)
 
 if (PIO_ENABLE_ASYNC)
-  set (PIO_ADDL_SRCS pio_nc2.c)
+  set (PIO_ADDL_SRCS pio_nc2.c pio_msg.c)
 else ()
-  set (PIO_ADDL_SRCS pio_nc.c pio_msg.c)
+  set (PIO_ADDL_SRCS pio_nc.c)
 endif ()
 
 add_library (pioc ${PIO_C_SRCS} ${PIO_GENNC_SRCS} ${PIO_ADDL_SRCS})
