@@ -607,7 +607,8 @@ int PIOc_def_var (int ncid, const char *name, nc_type xtype, int ndims,
     sprintf(errstr,"in file %s",__FILE__);
   }
   ierr = check_netcdf(file, ierr, errstr,__LINE__);
-    mpierr = MPI_Bcast(varidp , 1, MPI_INT, ios->ioroot, ios->my_comm);
+  if (varidp)
+      mpierr = MPI_Bcast(varidp , 1, MPI_INT, ios->ioroot, ios->my_comm);
   if(errstr != NULL) free(errstr);
   return ierr;
 }
@@ -2882,7 +2883,8 @@ int PIOc_put_att_int (int ncid, int varid, const char *name, nc_type xtype, PIO_
   if(ios->async_interface && ! ios->ioproc){
     if(ios->compmaster) 
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
-    mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(file->fh, 1, MPI_INT, ios->compmaster, ios->intercomm);
+    mpierr = MPI_Bcast(&varid, 1, MPI_INT, ios->compmaster, ios->intercomm);
   }
 
 
@@ -3958,12 +3960,14 @@ int PIOc_def_dim (int ncid, const char *name, PIO_Offset len, int *idp)
       mpierr = MPI_Send(&msg, 1,MPI_INT, ios->ioroot, 1, ios->union_comm);
     mpierr = MPI_Bcast(&(file->fh),1, MPI_INT, ios->compmaster, ios->intercomm);
     namelen = strlen(name);
-    printf("bcasting namelen = %d name = %s len = %d\n", namelen, name, len);
+    printf("%d PIOc_def_dim bcasting namelen = %d name = %s len = %d\n", my_rank,
+	   namelen, name, len);
     if (!ios->compmaster)
 	ios->compmaster = MPI_PROC_NULL;
     mpierr = MPI_Bcast(&namelen, 1, MPI_INT,  ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast((void *)name, namelen + 1, MPI_CHAR, ios->compmaster, ios->intercomm);
     mpierr = MPI_Bcast(&len, 1, MPI_INT,  ios->compmaster, ios->intercomm);
+    printf("%d PIOc_def_dim bcast complete\n", my_rank);
   }
 
   if(ios->ioproc){

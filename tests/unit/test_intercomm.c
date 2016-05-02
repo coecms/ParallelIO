@@ -27,6 +27,9 @@
 /** The name of the variable in the netCDF output file. */
 #define VAR_NAME "var_test_intercomm"
 
+/** The name of the global attribute in the netCDF output file. */
+#define ATT_NAME "gatt_test_intercomm"
+
 /** Error code for when things go wrong. */
 #define ERR_AWFUL 1111
 #define ERR_WRONG 2222
@@ -215,13 +218,18 @@ main(int argc, char **argv)
 	    	printf("%d test_intercomm file created ncid = %d\n", my_rank, ncid);
 	    
 	    if (verbose)
-	    	printf("%d defining dimension %s\n", my_rank, DIM_NAME);
+	    	printf("%d test_intercomm defining dimension %s\n", my_rank, DIM_NAME);
 	    if ((ret = PIOc_def_dim(ncid, DIM_NAME, DIM_LEN, &dimid)))
 	    	ERR(ret);
 	    if (verbose)
-	    	printf("rank: %d defining variable %s\n", my_rank, VAR_NAME);
+	    	printf("%d test_intercomm defining variable %s\n", my_rank, VAR_NAME);
 	    if ((ret = PIOc_def_var(ncid, VAR_NAME, NC_INT, NDIM, &dimid, &varid)))
 	    	ERR(ret);
+
+	    /* Add a global attribute. */
+	    /* int att_data = 42; */
+	    /* if ((ret = PIOc_put_att_int(ncid, NC_GLOBAL, ATT_NAME, NC_INT, 1, &att_data))) */
+	    /* 	ERR(ret); */
 
 	    /* Close the file. */
 	    if (verbose)
@@ -233,7 +241,7 @@ main(int argc, char **argv)
 	    for (int i = 0; i < LOCAL_DIM_LEN; i++)
 	    	data[i] = my_rank;
 	    if (verbose)
-	    	printf("rank: %d writing data\n", my_rank);
+	    	printf("%d test_intercomm writing data\n", my_rank);
 	    start[0] = !my_rank ? 0 : 2;
 	    /* if ((ret = PIOc_put_vara_int(ncid, varid, start, count, data))) */
 	    /* 	ERR(ret); */
@@ -280,7 +288,7 @@ main(int argc, char **argv)
 	    PIO_Offset dimlen;
 	    if ((ret = PIOc_inq_dim(ncid, 0, dimname, &dimlen)))
 	    	ERR(ret);
-	    printf("%d dim name is %s VAR_NAME is %s\n", my_rank, dimname, VAR_NAME);
+	    printf("%d test_intercomm dim name is %s VAR_NAME is %s\n", my_rank, dimname, VAR_NAME);
 	    if (strcmp(dimname, DIM_NAME) || dimlen != DIM_LEN)
 		ERR(ERR_WRONG);
 	    char dimname2[NC_MAX_NAME + 1];

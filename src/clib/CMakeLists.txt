@@ -15,9 +15,10 @@ set (PIO_C_SRCS topology.c
                 pio_spmd.c
                 pio_rearrange.c
                 pio_darray.c
+		pio_nc2.c
                 bget.c)
 
-set (PIO_GENNC_SRCS ${CMAKE_CURRENT_BINARY_DIR}/pio_nc.c
+set (PIO_GENNC_SRCS 
   ${CMAKE_CURRENT_BINARY_DIR}/pio_nc4.c
   ${CMAKE_CURRENT_BINARY_DIR}/pio_put_nc.c 
   ${CMAKE_CURRENT_BINARY_DIR}/pio_get_nc.c)
