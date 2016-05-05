@@ -510,7 +510,7 @@ int PIOc_finalize(const int iosysid)
   
   /* If asynch IO is in use, send the PIO_MSG_EXIT message from the
    * comp master to the IO processes. */
-  if (ios->async_interface && !ios->comp_rank)
+  if (ios->async_interface && ios->comp_rank == 0)
   {
     msg = PIO_MSG_EXIT;
     mpierr = MPI_Send(&msg, 1, MPI_INT, ios->ioroot, 1, ios->union_comm);
