@@ -1,0 +1,3 @@
+[submodule "pio/cmake"]
+	path = pio/cmake
+	url = https://github.com/CESM-Development/CMake_Fortran_utils
