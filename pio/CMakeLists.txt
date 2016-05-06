@@ -1,3 +1,5 @@
+set(CMAKE_Fortran_MODULE_DIRECTORY modules)
+
 IF( NOT GENF90_PATH) 
   SET (GENF90_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 ENDIF()
@@ -190,4 +192,15 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../testpio)
   ADD_SUBDIRECTORY(../testpio testpio)
 endif()
 
+target_include_directories(pio PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>
+    $<INSTALL_INTERFACE:include>
+    )
+
+install (TARGETS pio
+        ARCHIVE DESTINATION lib
+    )
+install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules/
+        DESTINATION include
+    )
 
