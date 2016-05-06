@@ -148,6 +148,7 @@ module basic_tests
       filename = fnames(test_id)
       iotype   = iotypes(test_id)
 
+      if (.not.(iotype == PIO_iotype_pbinary .or. iotype == pio_iotype_direct_pbinary)) then
       ! Open file that doesn't exist
       ret_val = PIO_openfile(pio_iosystem, pio_file, iotype, "FAKE.FILE", &
                              PIO_nowrite, CheckMPI=.false.)
@@ -156,6 +157,7 @@ module basic_tests
         err_msg = "Successfully opened file that doesn't exist"
         call PIO_closefile(pio_file)
         return
+      end if
       end if
 
       ! Open existing file, write data to it (for binary file, need to create new file)

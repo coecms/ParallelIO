@@ -22,14 +22,18 @@ module load cmake
 module load intel-fc/16.0.2.181
 module load intel-cc/16.0.2.181
 module load openmpi/1.10.2
-module load netcdf/4.3.3.1
+module load netcdf/4.3.3.1p
+module load hdf5/1.8.14p
 
 set -x
 rm -r build
 mkdir -p build
 pushd build
 cmake .. -DCMAKE_C_COMPILER=mpicc -DCMAKE_Fortran_COMPILER=mpif90 \
+    -DPIO_FILESYSTEM_HINTS=lustre \
+    -DCMAKE_Fortran_FLAGS='-xHost -O2 -g -traceback -warn all -check all -check noarg_temp_created' \
     -DCMAKE_INCLUDE_PATH=$(echo $CPATH:$LD_LIBRARY_PATH:$(echo $LD_LIBRARY_PATH | sed 's|/lib\>|/lib/Intel|g') | tr ':' ';') \
     -DCMAKE_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH:$(echo $LD_LIBRARY_PATH | sed 's|/lib\>|/lib/Intel|g') | tr ':' ';')
-make
+make VERBOSE=1
+ctest
 

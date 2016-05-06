@@ -2745,7 +2745,7 @@ contains
 
     select case(iotype)
     case(pio_iotype_pbinary, pio_iotype_direct_pbinary)
-       if(amode /=0) then
+       if(present(mode)) then
           print *, 'warning, the mode argument is currently ignored for binary file operations'
        end if
        if (present(CheckMPI)) then
