@@ -1,3 +1,6 @@
 [submodule "pio/cmake"]
 	path = pio/cmake
 	url = https://github.com/CESM-Development/CMake_Fortran_utils
+[submodule "pio/bin"]
+	path = pio/bin
+	url = https://github.com/PARALLELIO/genf90.git
