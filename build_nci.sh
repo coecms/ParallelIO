@@ -24,8 +24,12 @@ module load intel-cc/16.0.2.181
 module load openmpi/1.10.2
 module load netcdf/4.3.3.1
 
+set -x
 rm -r build
 mkdir -p build
 pushd build
-cmake .. -DNETCDF_Fortran_DIR=$PWD
+cmake .. -DCMAKE_C_COMPILER=mpicc -DCMAKE_Fortran_COMPILER=mpif90 \
+    -DCMAKE_INCLUDE_PATH=$(echo $CPATH:$LD_LIBRARY_PATH:$(echo $LD_LIBRARY_PATH | sed 's|/lib\>|/lib/Intel|g') | tr ':' ';') \
+    -DCMAKE_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH:$(echo $LD_LIBRARY_PATH | sed 's|/lib\>|/lib/Intel|g') | tr ':' ';')
 make
+
