@@ -15,12 +15,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# Install PIO into ~access/apps with Raijin's MPI libraries
+
 set -eu
 
-INSTALL_PREFIX=$HOME/scratch/pio
-[ -d $INSTALL_PREFIX ] || (echo "Install prefix not a directory - ${INSTALL_PREFIX}" && exit)
-
 VERSION=1.10.0
+INSTALL_PREFIX=/projects/access/apps/pio
+
+if [ ! -d $INSTALL_PREFIX ]; then
+    echo "Install prefix not a directory - ${INSTALL_PREFIX}"
+    exit
+fi
 
 # Open MPI has a stable interface at each even minor release, e.g. 1.10.1 is
 # compatible with 1.10.2
@@ -53,7 +58,10 @@ for mpi in ${MPIS[*]}; do
     mkdir -p build
     pushd build
         DESTDIR=${INSTALL_PREFIX}/${VERSION}-${COMPILER_VERSION}-${MPI_VERSION} 
-        [ ! -d "$DESTDIR" ] || (echo "Destination already present - ${DESTDIR}" && exit)
+        if [ -d $DESTDIR ]; then
+            echo "Destination already exists - ${DESTDIR}"
+            exit
+        fi
 
         cmake .. -DCMAKE_C_COMPILER=mpicc -DCMAKE_Fortran_COMPILER=mpif90 \
             -DCMAKE_INSTALL_PREFIX=$DESTDIR \
